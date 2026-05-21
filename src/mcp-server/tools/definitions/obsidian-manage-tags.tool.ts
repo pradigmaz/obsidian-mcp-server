@@ -14,12 +14,14 @@ import { TargetSchema } from './_shared/schemas.js';
 
 const LocationSchema = z
   .enum(['frontmatter', 'inline', 'both'])
-  .default('both')
-  .describe('Where to apply the change. Default `both` reconciles both representations.');
+  .default('frontmatter')
+  .describe(
+    'Where to apply the change. Defaults to `frontmatter` (the canonical Obsidian tag location, leaves the body untouched). `inline` mutates the note body — `add` appends `#tag` at end-of-file. `both` is opt-in reconciliation of frontmatter and inline tag locations.',
+  );
 
 export const obsidianManageTags = tool('obsidian_manage_tags', {
   description:
-    "Add, remove, or list a note's tags. The server reconciles both representations — frontmatter `tags:` array and inline `#tag` syntax — so an `add` ensures the tag is present in the requested location(s), and a `remove` strips it. Inline `#tag` occurrences inside fenced code blocks are intentionally left alone. Inline-location additions append the new tag at the end of the file. `list` ignores the input `tags` array.",
+    "Add, remove, or list a note's tags. Defaults to the frontmatter `tags:` array — set `location` to `inline` or `both` to mutate the note body. `add` ensures the tag is present in the requested location(s); `remove` strips it; `both` reconciles across both representations. Inline `#tag` occurrences inside fenced code blocks are intentionally left alone, and inline-location additions append the new tag at end-of-file. `list` ignores the input `tags` array.",
   annotations: { destructiveHint: true },
   input: z.object({
     target: TargetSchema.describe('Where the note lives.'),
