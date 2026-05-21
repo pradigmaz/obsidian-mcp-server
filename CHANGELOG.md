@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [3.2.1](changelog/3.2.x/3.2.1.md) — 2026-05-21 · ⚠️ Breaking
+
+Typed error contracts catch up to wire reality on `obsidian_get_note`, `obsidian_patch_note`, and `obsidian_append_to_note`; `obsidian_manage_tags` default `location` flips from `both` to `frontmatter`; `obsidian_search_notes` drops the opaque text-mode `score` field.
+
 ## [3.2.0](changelog/3.2.x/3.2.0.md) — 2026-05-17 · ⚠️ Breaking
 
 `obsidian_search_notes` gains BM25-ranked Omnisearch mode (auto-detected) and MCP-spec cursor pagination across all branches; `obsidian_list_commands` gains a `nameRegex` filter; PATCH headers track markdown-patch 1.0 from Local REST API v4.0.0+.

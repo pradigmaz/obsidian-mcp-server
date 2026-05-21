@@ -7,7 +7,7 @@
 
 <div align="center">
 
-[![npm](https://img.shields.io/npm/v/obsidian-mcp-server?style=flat-square&logo=npm&logoColor=white)](https://www.npmjs.com/package/obsidian-mcp-server) [![Version](https://img.shields.io/badge/Version-3.2.0-blue.svg?style=flat-square)](./CHANGELOG.md) [![Framework](https://img.shields.io/badge/Built%20on-@cyanheads/mcp--ts--core-259?style=flat-square)](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.29.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/)
+[![npm](https://img.shields.io/npm/v/obsidian-mcp-server?style=flat-square&logo=npm&logoColor=white)](https://www.npmjs.com/package/obsidian-mcp-server) [![Version](https://img.shields.io/badge/Version-3.2.1-blue.svg?style=flat-square)](./CHANGELOG.md) [![Framework](https://img.shields.io/badge/Built%20on-@cyanheads/mcp--ts--core-259?style=flat-square)](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.29.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/)
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![TypeScript](https://img.shields.io/badge/TypeScript-^6.0.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.3.11-blueviolet.svg?style=flat-square)](https://bun.sh/)
 
@@ -31,7 +31,7 @@ Fourteen tools grouped by shape — readers fetch notes and metadata, writers cr
 | `obsidian_patch_note` | Surgical `append` / `prepend` / `replace` against a heading, block reference, or frontmatter field. |
 | `obsidian_replace_in_note` | Body-wide search-replace inside a single note. Literal or regex matching with whole-word, whitespace-flexible, and case-sensitivity options; supports capture-group replacement. |
 | `obsidian_manage_frontmatter` | Atomic `get` / `set` / `delete` on a single frontmatter key. |
-| `obsidian_manage_tags` | Add, remove, or list tags — reconciles frontmatter `tags:` and inline `#tag` syntax. |
+| `obsidian_manage_tags` | Add, remove, or list tags. Defaults to the frontmatter `tags:` array; `location: 'inline'` or `'both'` opts into mutating the note body. |
 | `obsidian_delete_note` | Permanently delete a note. Elicits human confirmation when the client supports it. |
 | `obsidian_open_in_ui` | Open a file in the Obsidian app UI, with `failIfMissing` and `newLeaf` toggles. |
 | `obsidian_execute_command` | Execute an Obsidian command-palette command by ID. **Opt-in via `OBSIDIAN_ENABLE_COMMANDS=true`.** |
@@ -114,12 +114,13 @@ Literal mode preserves `$1` / `$&` in the replacement verbatim — only `useRege
 
 ### `obsidian_manage_tags`
 
-Add, remove, or list tags on a note. Reconciles both representations:
+Add, remove, or list tags on a note. Operates on one of two representations, defaulting to the canonical Obsidian frontmatter location:
 
-- Frontmatter `tags:` array
-- Inline `#tag` syntax in the body
+- `location: 'frontmatter'` (default) — only the frontmatter `tags:` array; the note body is left untouched
+- `location: 'inline'` — only inline `#tag` syntax in the body; `add` appends `#tag` at end-of-file
+- `location: 'both'` — opt-in reconciliation across both representations
 
-`add` ensures the tag is present in the requested location(s); `remove` strips it. Inline `#tag` occurrences inside fenced code blocks are intentionally left alone.
+`add` ensures the tag is present in the requested location(s); `remove` strips it; `list` ignores the input `tags` array. Inline `#tag` occurrences inside fenced code blocks are intentionally left alone.
 
 ---
 
