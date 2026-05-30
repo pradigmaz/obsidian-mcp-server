@@ -1,19 +1,19 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.cyanheads/obsidian-mcp-server",
-  "description": "MCP server for Obsidian vaults — read, write, search, and edit notes via the Local REST API plugin.",
+  "description": "MCP server for Obsidian — read, write, search, and surgically edit notes, tags, and frontmatter.",
   "repository": {
     "url": "https://github.com/cyanheads/obsidian-mcp-server",
     "source": "github"
   },
-  "version": "3.2.2",
+  "version": "3.2.3",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "obsidian-mcp-server",
       "runtimeHint": "node",
-      "version": "3.2.2",
+      "version": "3.2.3",
       "packageArguments": [
         {
           "type": "positional",
@@ -95,7 +95,7 @@
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "obsidian-mcp-server",
       "runtimeHint": "node",
-      "version": "3.2.2",
+      "version": "3.2.3",
       "packageArguments": [
         {
           "type": "positional",

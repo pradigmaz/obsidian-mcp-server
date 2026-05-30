@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [3.2.3](changelog/3.2.x/3.2.3.md) — 2026-05-29
+
+Enrichment block on search/list tools, mcp-ts-core ^0.9.6 → ^0.9.16, skill sync, format script safe-by-default
+
 ## [3.2.2](changelog/3.2.x/3.2.2.md) — 2026-05-23
 
 mcp-ts-core ^0.9.1 → ^0.9.6; format-parity fixes on search_notes and get_note; manifest.json + .mcpbignore scaffolded for MCPB bundle support; install badges added to README.
