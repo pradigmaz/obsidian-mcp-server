@@ -4,7 +4,7 @@
  */
 
 import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
-import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
+import { createMockContext, getEnrichment } from '@cyanheads/mcp-ts-core/testing';
 import { describe, expect, it } from 'vitest';
 import { obsidianListTags } from '@/mcp-server/tools/definitions/obsidian-list-tags.tool.js';
 import { setupHarness } from '../helpers.js';
@@ -38,17 +38,17 @@ describe('obsidian_list_tags', () => {
     expect(out.appliedFilters).toBeUndefined();
   });
 
-  it('handles an empty tag list gracefully', async () => {
+  it('handles an empty tag list gracefully and populates enrichment notice', async () => {
     harness
       .current()
       .pool.intercept({ path: '/tags/', method: 'GET' })
       .reply(200, { tags: [] }, { headers: { 'content-type': 'application/json' } });
 
-    const out = await obsidianListTags.handler(
-      obsidianListTags.input.parse({}),
-      createMockContext(),
-    );
+    const ctx = createMockContext();
+    const out = await obsidianListTags.handler(obsidianListTags.input.parse({}), ctx);
     expect(out.tags).toEqual([]);
+    const enrichment = getEnrichment(ctx);
+    expect(enrichment.notice).toMatch(/no tags/i);
   });
 
   it('applies nameRegex to keep only matching tags', async () => {
@@ -78,7 +78,7 @@ describe('obsidian_list_tags', () => {
     expect(out.appliedFilters).toEqual({ nameRegex: '^work' });
   });
 
-  it('returns an empty list with appliedFilters echoed when nameRegex excludes everything', async () => {
+  it('returns an empty list with appliedFilters echoed when nameRegex excludes everything, and populates enrichment notice', async () => {
     harness
       .current()
       .pool.intercept({ path: '/tags/', method: 'GET' })
@@ -88,12 +88,15 @@ describe('obsidian_list_tags', () => {
         { headers: { 'content-type': 'application/json' } },
       );
 
+    const ctx = createMockContext();
     const out = await obsidianListTags.handler(
       obsidianListTags.input.parse({ nameRegex: '^nothing-matches$' }),
-      createMockContext(),
+      ctx,
     );
     expect(out.tags).toEqual([]);
     expect(out.appliedFilters).toEqual({ nameRegex: '^nothing-matches$' });
+    const enrichment = getEnrichment(ctx);
+    expect(enrichment.notice).toMatch(/no tags/i);
   });
 
   it('throws regex_invalid (ValidationError) when nameRegex is not valid', async () => {
@@ -156,9 +159,9 @@ describe('obsidian_list_tags / format()', () => {
     expect(text).toContain('(2)');
   });
 
-  it('renders an empty-state message when there are no tags', () => {
+  it('renders a zero-count header when there are no tags', () => {
     const blocks = obsidianListTags.format!({ tags: [] });
-    expect((blocks[0] as { text: string }).text).toMatch(/no tags/i);
+    expect((blocks[0] as { text: string }).text).toContain('0 tags');
   });
 
   it('echoes the active nameRegex in the header when a filter was applied', () => {
@@ -171,13 +174,13 @@ describe('obsidian_list_tags / format()', () => {
     expect(text).toContain('#work');
   });
 
-  it('mentions the active nameRegex in the empty-state message', () => {
+  it('echoes the active nameRegex in the header even when the result is empty', () => {
     const blocks = obsidianListTags.format!({
       tags: [],
       appliedFilters: { nameRegex: '^nothing-matches$' },
     });
     const text = (blocks[0] as { text: string }).text;
-    expect(text).toMatch(/no tags found/i);
+    expect(text).toContain('0 tags');
     expect(text).toContain('^nothing-matches$');
   });
 });

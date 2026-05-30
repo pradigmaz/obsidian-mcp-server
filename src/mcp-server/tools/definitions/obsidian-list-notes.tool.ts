@@ -120,6 +120,14 @@ export const obsidianListNotes = tool('obsidian_list_notes', {
       .optional()
       .describe('Present when the walk was truncated by the global entry cap.'),
   }),
+  enrichment: {
+    notice: z
+      .string()
+      .optional()
+      .describe(
+        'Guidance when the walk was truncated by the entry cap, or the listed directory is empty.',
+      ),
+  },
   auth: ['tool:obsidian_list_notes:read'],
   errors: [
     {
@@ -175,6 +183,12 @@ export const obsidianListNotes = tool('obsidian_list_notes', {
     const appliedFilters: { extension?: string; nameRegex?: string; depth: number } = { depth };
     if (ext) appliedFilters.extension = ext;
     if (input.nameRegex) appliedFilters.nameRegex = input.nameRegex;
+
+    if (state.cappedByEntries) {
+      ctx.enrich.notice(ENTRY_CAP_HINT);
+    } else if (state.entries.length === 0) {
+      ctx.enrich.notice('The directory is empty or no entries matched the active filters.');
+    }
 
     return {
       path: input.path ?? '',

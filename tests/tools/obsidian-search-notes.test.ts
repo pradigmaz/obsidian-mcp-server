@@ -6,7 +6,7 @@
  */
 
 import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
-import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
+import { createMockContext, getEnrichment } from '@cyanheads/mcp-ts-core/testing';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   buildSearchNotesTool,
@@ -61,6 +61,47 @@ describe('obsidian_search_notes / text', () => {
     expect(out.result.hits[0]?.filename).toBe('Projects/A.md');
     expect(out.result.totalCount).toBe(1);
     expect(out.result.nextCursor).toBeUndefined();
+  });
+
+  it('populates effectiveQuery enrichment echo in text mode', async () => {
+    harness
+      .current()
+      .pool.intercept({
+        path: (p) => (p as string).startsWith('/search/simple/'),
+        method: 'POST',
+      })
+      .reply(
+        200,
+        [{ filename: 'A.md', score: 1, matches: [{ context: 'aa', match: { start: 0, end: 1 } }] }],
+        { headers: { 'content-type': 'application/json' } },
+      );
+
+    const ctx = createMockContext();
+    await obsidianSearchNotes.handler(
+      obsidianSearchNotes.input.parse({ mode: 'text', query: 'hello' }),
+      ctx,
+    );
+    const enrichment = getEnrichment(ctx);
+    expect(enrichment.effectiveQuery).toBe('hello');
+    expect(enrichment.notice).toBeUndefined();
+  });
+
+  it('populates notice enrichment when text search returns no hits', async () => {
+    harness
+      .current()
+      .pool.intercept({
+        path: (p) => (p as string).startsWith('/search/simple/'),
+        method: 'POST',
+      })
+      .reply(200, [], { headers: { 'content-type': 'application/json' } });
+
+    const ctx = createMockContext();
+    await obsidianSearchNotes.handler(
+      obsidianSearchNotes.input.parse({ mode: 'text', query: 'nothingmatches' }),
+      ctx,
+    );
+    const enrichment = getEnrichment(ctx);
+    expect(enrichment.notice).toMatch(/nothingmatches/);
   });
 
   it('throws query_required (ValidationError) when query is missing in text mode', async () => {

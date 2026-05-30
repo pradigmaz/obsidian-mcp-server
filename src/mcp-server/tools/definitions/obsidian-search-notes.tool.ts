@@ -261,6 +261,15 @@ export function buildSearchNotesTool({ omnisearchReachable }: { omnisearchReacha
     annotations: { readOnlyHint: true, idempotentHint: true },
     input: inputSchema,
     output: outputSchema,
+    // Agent-facing context on the success path — reaches structuredContent AND
+    // content[] automatically; no format() entry needed.
+    enrichment: {
+      effectiveQuery: z
+        .string()
+        .optional()
+        .describe('The query string as submitted (text and omnisearch modes only).'),
+      notice: z.string().optional().describe('Recovery guidance when the search returned no hits.'),
+    },
     auth: ['tool:obsidian_search_notes:read'],
     errors,
 
@@ -283,12 +292,19 @@ export function buildSearchNotesTool({ omnisearchReachable }: { omnisearchReacha
             ...ctx.recoveryFor('query_required'),
           });
         }
+        ctx.enrich.echo(input.query);
         const raw = await svc.searchText(ctx, input.query, input.contextLength);
         const prefix = input.pathPrefix;
         const prefixed = prefix ? raw.filter((h) => h.filename.startsWith(prefix)) : raw;
         const allowed = policy.filterReadable(prefixed);
         const clipped = allowed.map((h) => clipMatches(h, input.maxMatchesPerHit));
-        return { result: { mode: 'text' as const, ...paginate(clipped, input.cursor, ctx) } };
+        const page = paginate(clipped, input.cursor, ctx);
+        if (page.hits.length === 0) {
+          ctx.enrich.notice(
+            `No matches for "${input.query}"${prefix ? ` under prefix "${prefix}"` : ''}. Try broader terms, a different mode, or check that the path/filter is correct.`,
+          );
+        }
+        return { result: { mode: 'text' as const, ...page } };
       }
 
       if (input.mode === 'jsonlogic') {
@@ -301,7 +317,13 @@ export function buildSearchNotesTool({ omnisearchReachable }: { omnisearchReacha
         }
         const raw = await svc.searchJsonLogic(ctx, input.logic);
         const allowed = policy.filterReadable(raw);
-        return { result: { mode: 'jsonlogic' as const, ...paginate(allowed, input.cursor, ctx) } };
+        const page = paginate(allowed, input.cursor, ctx);
+        if (page.hits.length === 0) {
+          ctx.enrich.notice(
+            'No matches for the JSONLogic predicate. Verify the logic tree and field references.',
+          );
+        }
+        return { result: { mode: 'jsonlogic' as const, ...page } };
       }
 
       // omnisearch — only reachable when omnisearchReachable is true at build time.
@@ -311,6 +333,7 @@ export function buildSearchNotesTool({ omnisearchReachable }: { omnisearchReacha
           ...ctx.recoveryFor('query_required'),
         });
       }
+      ctx.enrich.echo(input.query);
       const raw = await svc.searchOmnisearch(ctx, input.query);
       /**
        * Compute `truncated` against the raw upstream array, before path-policy
@@ -319,10 +342,16 @@ export function buildSearchNotesTool({ omnisearchReachable }: { omnisearchReacha
        */
       const truncated = raw.length >= OMNISEARCH_UPSTREAM_CAP;
       const allowed = policy.filterReadable(raw);
+      const page = paginate(allowed, input.cursor, ctx);
+      if (page.hits.length === 0) {
+        ctx.enrich.notice(
+          `No Omnisearch matches for "${input.query}". Try broader terms, fewer exclusions, or switch to text mode.`,
+        );
+      }
       return {
         result: {
           mode: 'omnisearch' as const,
-          ...paginate(allowed, input.cursor, ctx),
+          ...page,
           truncated,
         },
       };
@@ -340,13 +369,6 @@ export function buildSearchNotesTool({ omnisearchReachable }: { omnisearchReacha
       }
       if (result.nextCursor) {
         lines.push(`_Next page cursor: \`${result.nextCursor}\`_`);
-      }
-      if (result.hits.length === 0) {
-        lines.push(
-          '',
-          '_No matches. Try broader terms, a different mode, or check that the path/filter is correct._',
-        );
-        return [{ type: 'text', text: lines.join('\n') }];
       }
       lines.push('');
       if (result.mode === 'text') {

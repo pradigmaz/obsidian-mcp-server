@@ -41,6 +41,12 @@ export const obsidianListTags = tool('obsidian_list_tags', {
       .optional()
       .describe('Active filters that produced this listing. Absent when no filter was applied.'),
   }),
+  enrichment: {
+    notice: z
+      .string()
+      .optional()
+      .describe('Guidance when no tags matched the applied filter, or the vault has no tags.'),
+  },
   auth: ['tool:obsidian_list_tags:read'],
   errors: [
     {
@@ -85,6 +91,13 @@ export const obsidianListTags = tool('obsidian_list_tags', {
     const tags = await svc.listTags(ctx);
     const filtered = regex ? tags.filter((t) => regex.test(t.name)) : tags;
 
+    if (filtered.length === 0) {
+      const filterNote = input.nameRegex ? ` matching \`${input.nameRegex}\`` : '';
+      ctx.enrich.notice(
+        `No tags found${filterNote}. ${input.nameRegex ? 'Try a broader nameRegex or omit it to list all tags.' : 'The vault may have no tagged notes.'}`,
+      );
+    }
+
     return {
       tags: filtered.map((t) => ({ name: t.name, count: t.count })),
       ...(input.nameRegex ? { appliedFilters: { nameRegex: input.nameRegex } } : {}),
@@ -93,13 +106,12 @@ export const obsidianListTags = tool('obsidian_list_tags', {
 
   format: (result) => {
     const activeRegex = result.appliedFilters?.nameRegex;
-    if (result.tags.length === 0) {
-      const filterNote = activeRegex ? ` matching \`${activeRegex}\`` : '';
-      return [{ type: 'text', text: `_No tags found${filterNote}._` }];
-    }
     const filterSuffix = activeRegex ? ` · nameRegex=\`${activeRegex}\`` : '';
-    const lines = [`**${result.tags.length} tags**${filterSuffix}`, ''];
-    for (const t of result.tags) lines.push(`- \`#${t.name}\` (${t.count})`);
+    const lines = [`**${result.tags.length} tags**${filterSuffix}`];
+    if (result.tags.length > 0) {
+      lines.push('');
+      for (const t of result.tags) lines.push(`- \`#${t.name}\` (${t.count})`);
+    }
     return [{ type: 'text', text: lines.join('\n') }];
   },
 });
