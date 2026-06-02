@@ -163,6 +163,8 @@ Three optional env vars gate which vault paths each tool can target. **Default u
 
 Denies are typed `path_forbidden` (JSON-RPC code `Forbidden`) with the active scope echoed back in `data.recovery.hint` and `data.activeScope`, so the LLM can self-correct without inspecting server logs. Search results from `obsidian_search_notes` are filtered against `READ_PATHS` silently — surfacing a "we hid N hits" indicator would defeat the gate.
 
+**Tag listing is vault-wide.** `obsidian_list_tags` and the `obsidian://tags` resource aggregate tag names across the whole vault and are *not* narrowed by `OBSIDIAN_READ_PATHS` — they take no path to gate, so tag names (never note contents) from outside the read scope can surface.
+
 The startup banner logs the active scope so operators can verify their config at boot.
 
 ---
