@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [3.2.4](changelog/3.2.x/3.2.4.md) — 2026-06-02
+
+mcp-ts-core ^0.9.16 → ^0.9.21 (per-request log context, retryable auto-population, query-string redaction, devcheck gates); plugin marketplace support (.claude-plugin, .codex-plugin); MCP config key renamed to obsidian-mcp-server
+
 ## [3.2.3](changelog/3.2.x/3.2.3.md) — 2026-05-29
 
 Enrichment block on search/list tools, mcp-ts-core ^0.9.6 → ^0.9.16, skill sync, format script safe-by-default
