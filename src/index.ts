@@ -98,10 +98,8 @@ const commandTools =
 const tools = [...readToolDefinitions, searchNotesTool, ...writeTools, ...commandTools];
 
 const { services } = await createApp({
+  name: 'obsidian-mcp-server',
   title: 'obsidian-mcp-server',
-  description:
-    'MCP server for Obsidian — read, write, search, and surgically edit notes, tags, and frontmatter.',
-  websiteUrl: 'https://github.com/cyanheads/obsidian-mcp-server',
   tools,
   resources: allResourceDefinitions,
   prompts: allPromptDefinitions,
