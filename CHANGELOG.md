@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [3.2.7](changelog/3.2.x/3.2.7.md) — 2026-06-11
+
+mcp-ts-core ^0.10.6: post-pack bundle cleaner, packaging linter checks 8-9 (bundle content + identity), skill sync
+
 ## [3.2.6](changelog/3.2.x/3.2.6.md) — 2026-06-11
 
 Explicit server title on createApp() so MCP clients display obsidian-mcp-server in initialize serverInfo

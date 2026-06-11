@@ -1,6 +1,6 @@
 # obsidian-mcp-server - Directory Structure
 
-Generated on: 2026-06-11 17:47:47
+Generated on: 2026-06-11 21:05:47
 
 ```text
 obsidian-mcp-server/
@@ -34,6 +34,7 @@ obsidian-mcp-server/
 │   ├── check-framework-antipatterns.ts
 │   ├── check-skill-versions.ts
 │   ├── check-skills-sync.ts
+│   ├── clean-mcpb.ts
 │   ├── clean.ts
 │   ├── devcheck.ts
 │   ├── lint-mcp.ts
