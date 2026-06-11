@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [3.2.6](changelog/3.2.x/3.2.6.md) — 2026-06-11
+
+Explicit server title on createApp() so MCP clients display obsidian-mcp-server in initialize serverInfo
+
 ## [3.2.5](changelog/3.2.x/3.2.5.md) — 2026-06-11
 
 mcp-ts-core ^0.9.21 → ^0.10.5 (strict env-boolean parsing, server identity fields, .mcpbignore anchoring, OBSIDIAN_OMNISEARCH_URL in manifest/server.json, empty-string guards on URL fields)
