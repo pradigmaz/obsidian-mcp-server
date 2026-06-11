@@ -1,7 +1,7 @@
 {
   "manifest_version": "0.3",
   "name": "obsidian-mcp-server",
-  "version": "3.2.4",
+  "version": "3.2.5",
   "description": "MCP server for Obsidian vaults — read, write, search, and surgically edit notes, tags, and frontmatter via the Local REST API plugin. STDIO or Streamable HTTP.",
   "author": {
     "name": "cyanheads"
@@ -30,6 +30,7 @@
         "OBSIDIAN_READ_PATHS": "${OBSIDIAN_READ_PATHS}",
         "OBSIDIAN_WRITE_PATHS": "${OBSIDIAN_WRITE_PATHS}",
         "OBSIDIAN_READ_ONLY": "${OBSIDIAN_READ_ONLY}",
+        "OBSIDIAN_OMNISEARCH_URL": "${OBSIDIAN_OMNISEARCH_URL}",
         "MCP_LOG_LEVEL": "${MCP_LOG_LEVEL}"
       }
     }
@@ -52,49 +53,64 @@
       "title": "Obsidian Base URL",
       "description": "Base URL of the Obsidian Local REST API. Default: http://127.0.0.1:27123. Use https://127.0.0.1:27124 for the HTTPS port.",
       "type": "string",
-      "required": false
+      "required": false,
+      "default": ""
     },
     "OBSIDIAN_VERIFY_SSL": {
       "title": "Verify SSL",
       "description": "Whether to verify the TLS certificate. Default false (plugin uses a self-signed cert).",
       "type": "string",
-      "required": false
+      "required": false,
+      "default": ""
     },
     "OBSIDIAN_REQUEST_TIMEOUT_MS": {
       "title": "Request Timeout (ms)",
       "description": "Per-request timeout in milliseconds. Default: 30000.",
       "type": "string",
-      "required": false
+      "required": false,
+      "default": ""
     },
     "OBSIDIAN_ENABLE_COMMANDS": {
       "title": "Enable Commands",
       "description": "Opt-in flag for the command-palette pair (obsidian_list_commands + obsidian_execute_command). Off by default.",
       "type": "string",
-      "required": false
+      "required": false,
+      "default": ""
     },
     "OBSIDIAN_READ_PATHS": {
       "title": "Read Path Allowlist",
       "description": "Comma-separated vault-relative folder allowlist for reads. Unset = full vault. Example: 'public/,projects/'.",
       "type": "string",
-      "required": false
+      "required": false,
+      "default": ""
     },
     "OBSIDIAN_WRITE_PATHS": {
       "title": "Write Path Allowlist",
       "description": "Comma-separated vault-relative folder allowlist for writes. Unset = full vault. Example: 'projects/,scratch/'.",
       "type": "string",
-      "required": false
+      "required": false,
+      "default": ""
     },
     "OBSIDIAN_READ_ONLY": {
       "title": "Read-Only Mode",
       "description": "Global read-only kill switch. When true, every write is denied. Default: false.",
       "type": "string",
-      "required": false
+      "required": false,
+      "default": ""
+    },
+    "OBSIDIAN_OMNISEARCH_URL": {
+      "title": "Omnisearch URL",
+      "description": "Override URL for the Omnisearch plugin HTTP server (port 51361 by default). Set only if the plugin is not on the default port.",
+      "type": "string",
+      "required": false,
+      "default": ""
     },
     "MCP_LOG_LEVEL": {
       "title": "Log Level",
       "description": "Minimum log level for output (debug, info, warn, error). Default: info.",
       "type": "string",
-      "required": false
+      "required": false,
+      "default": ""
     }
   }
 }

@@ -1,8 +1,8 @@
 # Agent Protocol
 
 **Server:** obsidian-mcp-server
-**Version:** 3.2.4
-**Framework:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) `^0.9.21`
+**Version:** 3.2.5
+**Framework:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) `^0.10.5`
 **Engines:** Bun ≥1.3.11, Node ≥24.0.0
 **MCP SDK:** `@modelcontextprotocol/sdk` ^1.29.0
 **Zod:** ^4.4.3
@@ -181,7 +181,7 @@ Handlers receive a unified `ctx` object. Properties this server actually uses:
 | `ctx.requestId` | Unique request ID — surfaces in log lines for correlation. |
 | `ctx.tenantId` | Tenant ID from JWT or `'default'` for stdio. |
 
-The framework also provides `ctx.state`, `ctx.sample`, and `ctx.progress`. They aren't used by this server — Obsidian is single-vault and stateless from the server's perspective, so per-tenant KV and progress streams aren't needed. See the framework `CLAUDE.md` for the full surface.
+The framework also provides `ctx.state` and `ctx.progress`. They aren't used by this server — Obsidian is single-vault and stateless from the server's perspective, so per-tenant KV and progress streams aren't needed. See the framework `CLAUDE.md` for the full surface.
 
 ---
 
