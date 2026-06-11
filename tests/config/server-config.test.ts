@@ -16,6 +16,7 @@ const ENV_KEYS = [
   'OBSIDIAN_READ_PATHS',
   'OBSIDIAN_WRITE_PATHS',
   'OBSIDIAN_READ_ONLY',
+  'OBSIDIAN_OMNISEARCH_URL',
 ] as const;
 
 beforeEach(() => {
@@ -54,13 +55,19 @@ describe('getServerConfig', () => {
     expect(config.enableCommands).toBe(true);
   });
 
-  it('treats other strings as false', () => {
+  it('parses recognized falsy strings (no, off, 0, false) to false', () => {
     vi.stubEnv('OBSIDIAN_API_KEY', 'k');
     vi.stubEnv('OBSIDIAN_VERIFY_SSL', 'no');
-    vi.stubEnv('OBSIDIAN_ENABLE_COMMANDS', 'maybe');
+    vi.stubEnv('OBSIDIAN_ENABLE_COMMANDS', 'off');
     const config = getServerConfig();
     expect(config.verifySsl).toBe(false);
     expect(config.enableCommands).toBe(false);
+  });
+
+  it('rejects unrecognized boolean strings at startup', () => {
+    vi.stubEnv('OBSIDIAN_API_KEY', 'k');
+    vi.stubEnv('OBSIDIAN_ENABLE_COMMANDS', 'maybe');
+    expect(() => getServerConfig()).toThrow(/OBSIDIAN_ENABLE_COMMANDS/);
   });
 
   it('coerces OBSIDIAN_REQUEST_TIMEOUT_MS to a number', () => {
@@ -174,6 +181,32 @@ describe('OBSIDIAN_READ_PATHS / OBSIDIAN_WRITE_PATHS — separator parity with P
     vi.stubEnv('OBSIDIAN_API_KEY', 'k');
     vi.stubEnv('OBSIDIAN_READ_PATHS', 'foo/bar,foo\\bar,FOO\\BAR');
     expect(getServerConfig().readPaths).toEqual(['foo/bar']);
+  });
+});
+
+describe('OBSIDIAN_BASE_URL and OBSIDIAN_OMNISEARCH_URL — empty-string handling', () => {
+  it('treats empty OBSIDIAN_BASE_URL as unset and falls back to the default', () => {
+    vi.stubEnv('OBSIDIAN_API_KEY', 'k');
+    vi.stubEnv('OBSIDIAN_BASE_URL', '');
+    expect(getServerConfig().baseUrl).toBe('http://127.0.0.1:27123');
+  });
+
+  it('treats whitespace-only OBSIDIAN_BASE_URL as unset and falls back to the default', () => {
+    vi.stubEnv('OBSIDIAN_API_KEY', 'k');
+    vi.stubEnv('OBSIDIAN_BASE_URL', '   ');
+    expect(getServerConfig().baseUrl).toBe('http://127.0.0.1:27123');
+  });
+
+  it('treats empty OBSIDIAN_OMNISEARCH_URL as unset', () => {
+    vi.stubEnv('OBSIDIAN_API_KEY', 'k');
+    vi.stubEnv('OBSIDIAN_OMNISEARCH_URL', '');
+    expect(getServerConfig().omnisearchUrl).toBeUndefined();
+  });
+
+  it('accepts a valid URL for OBSIDIAN_OMNISEARCH_URL', () => {
+    vi.stubEnv('OBSIDIAN_API_KEY', 'k');
+    vi.stubEnv('OBSIDIAN_OMNISEARCH_URL', 'http://127.0.0.1:51361');
+    expect(getServerConfig().omnisearchUrl).toBe('http://127.0.0.1:51361');
   });
 });
 
