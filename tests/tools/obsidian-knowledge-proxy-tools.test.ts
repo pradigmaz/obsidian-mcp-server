@@ -56,13 +56,16 @@ describe('Knowledge proxy tools', () => {
       json: async () => ({ concept: 'OKF', cluster: ['Spec.md'], relatedConcepts: ['Markdown'] }),
     });
 
-    const res = await obsidianKnowledgeConceptCluster.handler({ concept: 'OKF' }, mockCtx as any);
+    const res = await obsidianKnowledgeConceptCluster.handler(
+      { concept: 'OKF', depth: 2 },
+      mockCtx as any,
+    );
 
     expect(mockFetch).toHaveBeenCalledWith(
       'http://127.0.0.1:27125/api/concept-cluster',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ concept: 'OKF' }),
+        body: JSON.stringify({ concept: 'OKF', depth: 2 }),
       }),
     );
     expect(res.result.cluster).toEqual(['Spec.md']);
@@ -94,7 +97,24 @@ describe('Knowledge proxy tools', () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: async () => ({ pass: true, topKHitRate: 100, cases: [] }),
+      json: async () => ({
+        pass: true,
+        dataset_path: '.obsidian/knowledge-benchmarks.json',
+        k: 3,
+        query_count: 1,
+        runs_count: 1,
+        median_rule: 'single_run',
+        topKHitRate: 100,
+        mrr_at_k: 1,
+        ndcg_at_k: 1,
+        recall_at_k: 1,
+        avg_estimated_tokens: 1,
+        latency_p50_ms: 1,
+        latency_p95_ms: 1,
+        thresholds: {},
+        enforce_gates: false,
+        cases: [],
+      }),
     });
 
     const res = await obsidianKnowledgeQueryBenchmark.handler(input, mockCtx as any);
@@ -113,7 +133,7 @@ describe('Knowledge proxy tools', () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: async () => ({ signals: [] }),
+      json: async () => [],
     });
 
     await obsidianKnowledgeSignalMemoryTool.handler({ action: 'list' }, mockCtx as any);
@@ -128,18 +148,26 @@ describe('Knowledge proxy tools', () => {
   });
 
   it('routes signal_memory mark through POST /api/signals/mark', async () => {
-    const input = {
-      action: 'mark' as const,
+    const entry = {
       signalKey: 'missing_props:Note.md',
       ruleId: 'missing_props',
       path: 'Note.md',
       decision: 'resolved' as const,
       reason: 'metadata added',
+      updatedAt: '2026-06-15T00:00:00.000Z',
+    };
+    const input = {
+      action: 'mark' as const,
+      signalKey: entry.signalKey,
+      ruleId: entry.ruleId,
+      path: entry.path,
+      decision: entry.decision,
+      reason: entry.reason,
     };
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: async () => ({ updated: true }),
+      json: async () => entry,
     });
 
     const res = await obsidianKnowledgeSignalMemoryTool.handler(input, mockCtx as any);
@@ -151,6 +179,6 @@ describe('Knowledge proxy tools', () => {
         body: JSON.stringify(input),
       }),
     );
-    expect(res.result).toEqual({ updated: true });
+    expect(res.result).toEqual(entry);
   });
 });

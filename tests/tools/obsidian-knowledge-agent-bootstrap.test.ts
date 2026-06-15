@@ -27,7 +27,34 @@ describe('obsidian_knowledge_agent_bootstrap', () => {
         brief: { filesCount: 42, topTags: [{ tag: '#test', count: 1 }] },
         notes: [{ path: 'test.md', title: 'Test', score: 1.5, excerpt: 'Hello world' }],
         relevantLinks: ['other.md'],
+        relevantBacklinks: ['source.md'],
         openQuestions: ['Is this a test?'],
+        profile: 'fast',
+        degradation_reasons: [],
+        deepen_available: true,
+        query_bundle: {
+          query: 'test query',
+          limit: 5,
+          semantic: false,
+          resolved_mode: 'lexical_graph',
+          mode_source: 'knowledge_plugin',
+          max_chars: 100,
+          max_tokens: 25,
+          hits: [{ path: 'test.md', title: 'Test', score: 1.5, excerpt: 'Hello world' }],
+          context: { notes: [{ path: 'test.md', title: 'Test', score: 1.5, excerpt: 'Hello world' }] },
+          provenance: { source: 'knowledge-obsidian-plugin', generated_at: '2026-06-16T00:00:00.000Z' },
+          followups: ['Is this a test?']
+        },
+        timings: {
+          index_ready_ms: 0,
+          brief_ms: 1,
+          search_ms: 2,
+          context_ms: 0,
+          investigation_ms: 0,
+          report_ms: 0,
+          total_ms: 3
+        },
+        trimmed_sections: [],
         suggestedTools: ['tool_a']
       })
     });
@@ -55,12 +82,15 @@ describe('obsidian_knowledge_agent_bootstrap', () => {
 
     const formatted = obsidianKnowledgeAgentBootstrap.format(res);
     expect(formatted[0].text).toContain('**Agent Bootstrap Context**');
+    expect(formatted[0].text).toContain('Profile: fast');
     expect(formatted[0].text).toContain('- Markdown notes: 42');
     expect(formatted[0].text).toContain('- Top tags: #test (1)');
     expect(formatted[0].text).toContain('- **test.md** (score: 1.50)');
     expect(formatted[0].text).toContain('*Excerpt*: Hello world');
     expect(formatted[0].text).toContain('### Nearby Links');
     expect(formatted[0].text).toContain('- other.md');
+    expect(formatted[0].text).toContain('### Nearby Backlinks');
+    expect(formatted[0].text).toContain('- source.md');
     expect(formatted[0].text).toContain('**Open Questions:**');
     expect(formatted[0].text).toContain('- Is this a test?');
   });
