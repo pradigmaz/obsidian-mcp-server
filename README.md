@@ -77,23 +77,14 @@ Requires the Knowledge Analytics plugin running on `http://127.0.0.1:27125`.
 
 *(See upstream documentation for `OBSIDIAN_READ_PATHS` and `OBSIDIAN_WRITE_PATHS`)*
 
-### 1. Claude Desktop
-Add the following to your `claude_desktop_config.json`:
+### 1. Codex
+If you are using Codex, add the following to your `~/.codex/config.toml` (or project `.codex/config.toml`):
 
-```json
-{
-  "mcpServers": {
-    "obsidian-knowledge-mcp": {
-      "type": "stdio",
-      "command": "bunx",
-      "args": ["obsidian-mcp-server@latest"],
-      "env": {
-        "OBSIDIAN_API_KEY": "your-local-rest-api-key",
-        "OBSIDIAN_KNOWLEDGE_URL": "http://127.0.0.1:27125"
-      }
-    }
-  }
-}
+```toml
+[mcp_servers.obsidian-knowledge-mcp]
+command = "bunx"
+args = ["obsidian-mcp-server@latest"]
+env = { OBSIDIAN_API_KEY = "your-local-rest-api-key", OBSIDIAN_KNOWLEDGE_URL = "http://127.0.0.1:27125" }
 ```
 
 ### 2. Cursor IDE
