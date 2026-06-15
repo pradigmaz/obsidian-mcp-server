@@ -25,7 +25,7 @@ To use the analytical tools exposed by this server, your Obsidian vault **MUST**
 ## Features
 
 - **Context Under Budget:** Smart truncation prevents token exhaustion. Large search results are limited to 15,000 characters.
-- **Sensitive Data Detection:** Real-time regex censorship of AWS, VK, Discord, and SSH keys before they reach the LLM context.
+- **Sensitive Data Detection:** Real-time regex censorship of AWS, Telegram, Discord, and SSH keys before they reach the LLM context.
 - **Vault Layering:** Detects architectural violations (e.g., active projects linking to archives).
 
 ## Tools
