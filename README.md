@@ -87,16 +87,24 @@ args = ["obsidian-mcp-server@latest"]
 env = { OBSIDIAN_API_KEY = "your-local-rest-api-key", OBSIDIAN_KNOWLEDGE_URL = "http://127.0.0.1:27125" }
 ```
 
-### 2. Cursor IDE
-To use this MCP server in Cursor, open **Settings -> Features -> MCP Servers** and click **Add New MCP Server**.
+### 2. Other MCP Clients
+For most standard MCP environments (Antigravity, Claude Desktop, IDEs), use the standard JSON configuration syntax:
 
-- **Type:** `command`
-- **Name:** `obsidian-knowledge`
-- **Command:** 
-  You must pass the environment variables inline before the command. Use the following string:
-  ```bash
-  OBSIDIAN_API_KEY=your-local-rest-api-key bunx obsidian-mcp-server@latest
-  ```
+```json
+{
+  "mcpServers": {
+    "obsidian-knowledge-mcp": {
+      "type": "stdio",
+      "command": "bunx",
+      "args": ["obsidian-mcp-server@latest"],
+      "env": {
+        "OBSIDIAN_API_KEY": "your-local-rest-api-key",
+        "OBSIDIAN_KNOWLEDGE_URL": "http://127.0.0.1:27125"
+      }
+    }
+  }
+}
+```
 
 ---
 ## License
