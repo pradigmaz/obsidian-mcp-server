@@ -9,6 +9,10 @@
   </p>
 
   <p>
+    <b>🇺🇸 English</b> | <a href="README.ru.md">🇷🇺 Русский</a>
+  </p>
+
+  <p>
     <a href="https://github.com/pradigmaz/obsidian-mcp-server/releases"><img src="https://img.shields.io/github/v/release/pradigmaz/obsidian-mcp-server?style=for-the-badge&color=blue" alt="Release"></a>
     <a href="https://github.com/pradigmaz/obsidian-mcp-server/blob/main/LICENSE"><img src="https://img.shields.io/github/license/pradigmaz/obsidian-mcp-server?style=for-the-badge&color=success" alt="License"></a>
     <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-^6.0.3-3178C6?style=for-the-badge&logo=typescript" alt="TypeScript"></a>
