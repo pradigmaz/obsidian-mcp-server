@@ -47,6 +47,7 @@ const KNOWLEDGE_ERRORS = [
 ] as const;
 
 export const knowledgeToolErrors = KNOWLEDGE_ERRORS;
+const CLIENT_SCHEMA_VERSION = '0.1.0';
 
 export async function requestKnowledgeJson<T>({
   body,
@@ -61,7 +62,7 @@ export async function requestKnowledgeJson<T>({
   try {
     const init: RequestInit = { 
       method,
-      headers: { 'X-Schema-Version': '0.1.0', ...headers },
+      headers: { 'X-Schema-Version': CLIENT_SCHEMA_VERSION, ...headers },
       signal: AbortSignal.timeout(10000)
     };
     if (body !== undefined) {
@@ -75,6 +76,24 @@ export async function requestKnowledgeJson<T>({
       `Knowledge Analytics endpoint is not reachable at ${baseUrl}.`,
       { baseUrl, path, ...ctx.recoveryFor('knowledge_unreachable') },
       { cause: err },
+    );
+  }
+
+  const pluginHeader = res.headers?.get?.('x-knowledge-plugin');
+  if (pluginHeader === null) {
+    throw ctx.fail(
+      'knowledge_bad_response',
+      `Stale or incorrect server detected at ${baseUrl}. Port is occupied by a non-Knowledge process.`,
+      { status: res.status, path, ...ctx.recoveryFor('knowledge_bad_response') },
+    );
+  }
+
+  const schemaHeader = res.headers?.get?.('x-schema-version');
+  if (schemaHeader !== undefined && schemaHeader !== null && schemaHeader !== CLIENT_SCHEMA_VERSION) {
+    throw ctx.fail(
+      'knowledge_bad_response',
+      `Knowledge Analytics schema mismatch. Expected ${CLIENT_SCHEMA_VERSION}, got ${schemaHeader}.`,
+      { status: res.status, path, expectedSchemaVersion: CLIENT_SCHEMA_VERSION, schemaVersion: schemaHeader, ...ctx.recoveryFor('knowledge_bad_response') },
     );
   }
 
@@ -94,7 +113,7 @@ export async function requestKnowledgeJson<T>({
     throw ctx.fail(
       'knowledge_gatekeeper_blocked',
       `Vault fails OKF standards. Blocked by Gatekeeper (HTTP 428). You MUST run 'obsidian_knowledge_health_report', fix critical issues manually (Janitor Protocol), and try again.`,
-      { status: res.status, path, payload, ...ctx.recoveryFor('knowledge_bad_response') },
+      { status: res.status, path, payload, ...ctx.recoveryFor('knowledge_gatekeeper_blocked') },
     );
   }
 

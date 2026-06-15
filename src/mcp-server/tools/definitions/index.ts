@@ -26,6 +26,7 @@ import { obsidianWriteNote } from './obsidian-write-note.tool.js';
 
 export { buildSearchNotesTool } from './obsidian-search-notes.tool.js';
 
+import { obsidianKnowledgeStatus } from './obsidian-knowledge-status.tool.js';
 import { obsidianKnowledgeHealthReport } from './obsidian-knowledge-health-report.tool.js';
 import { obsidianKnowledgeSmartSearch } from './obsidian-knowledge-smart-search.tool.js';
 import { obsidianKnowledgeWorkspaceBrief } from './obsidian-knowledge-workspace-brief.tool.js';
@@ -47,6 +48,7 @@ export const readToolDefinitions = [
   obsidianListNotes,
   obsidianListTags,
   obsidianOpenInUi,
+  obsidianKnowledgeStatus,
   obsidianKnowledgeHealthReport,
   obsidianKnowledgeSmartSearch,
   obsidianKnowledgeWorkspaceBrief,

@@ -3,6 +3,9 @@ import { requestKnowledgeJson } from '../../src/mcp-server/tools/definitions/obs
 
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
+const knowledgeHeaders = {
+  get: (key: string) => key === 'x-knowledge-plugin' ? '1' : '0.1.0',
+};
 
 describe('requestKnowledgeJson', () => {
   let mockCtx: any;
@@ -69,6 +72,7 @@ describe('requestKnowledgeJson', () => {
     mockFetch.mockResolvedValueOnce({
       status: 400,
       ok: false,
+      headers: knowledgeHeaders,
       json: () => Promise.resolve({ error: 'Bad request' }),
     });
 
@@ -84,10 +88,76 @@ describe('requestKnowledgeJson', () => {
     );
   });
 
+  it('reports a non-Knowledge port owner before generic HTTP errors', async () => {
+    mockFetch.mockResolvedValueOnce({
+      status: 404,
+      ok: false,
+      headers: { get: () => null },
+      json: () => Promise.resolve({ error: 'not found' }),
+    });
+
+    await expect(requestKnowledgeJson({
+      path: '/api/status',
+      ctx: mockCtx,
+    })).rejects.toThrow('Stale or incorrect server detected');
+
+    expect(mockCtx.fail).toHaveBeenCalledWith(
+      'knowledge_bad_response',
+      expect.stringContaining('non-Knowledge process'),
+      expect.objectContaining({ status: 404, path: '/api/status', recovery: 'recover_knowledge_bad_response' })
+    );
+  });
+
+  it('reports schema header mismatch', async () => {
+    mockFetch.mockResolvedValueOnce({
+      status: 200,
+      ok: true,
+      headers: { get: (key: string) => key === 'x-knowledge-plugin' ? '1' : '0.0.0' },
+      json: () => Promise.resolve({ status: 'ready' }),
+    });
+
+    await expect(requestKnowledgeJson({
+      path: '/api/status',
+      ctx: mockCtx,
+    })).rejects.toThrow('Knowledge Analytics schema mismatch');
+
+    expect(mockCtx.fail).toHaveBeenCalledWith(
+      'knowledge_bad_response',
+      expect.any(String),
+      expect.objectContaining({ expectedSchemaVersion: '0.1.0', schemaVersion: '0.0.0' })
+    );
+  });
+
+  it('uses gatekeeper recovery metadata for HTTP 428', async () => {
+    mockFetch.mockResolvedValueOnce({
+      status: 428,
+      ok: false,
+      headers: knowledgeHeaders,
+      json: () => Promise.resolve({ error: 'Health gate failed' }),
+    });
+
+    await expect(requestKnowledgeJson({
+      path: '/test',
+      ctx: mockCtx,
+    })).rejects.toThrow('Vault fails OKF standards.');
+
+    expect(mockCtx.fail).toHaveBeenCalledWith(
+      'knowledge_gatekeeper_blocked',
+      expect.any(String),
+      expect.objectContaining({
+        status: 428,
+        path: '/test',
+        payload: { error: 'Health gate failed' },
+        recovery: 'recover_knowledge_gatekeeper_blocked',
+      })
+    );
+  });
+
   it('handles successful requests', async () => {
     mockFetch.mockResolvedValueOnce({
       status: 200,
       ok: true,
+      headers: knowledgeHeaders,
       json: () => Promise.resolve({ data: 'success' }),
     });
 
