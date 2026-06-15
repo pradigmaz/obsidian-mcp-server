@@ -14,22 +14,24 @@
 
 ---
 
-## What makes this different?
-
-This is not just a tool for reading and writing files. It's a structured intelligence gateway:
-
-- **Google OKF (Open Knowledge Format):** Strict enforcement of note structure. Unstructured notes trigger hygiene warnings (see the [Google OKF Specification](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md)).
-- **Context Under Budget:** Smart truncation prevents token exhaustion. Large search results are limited to 15,000 characters.
-- **Sensitive Data Detection:** Real-time regex censorship of AWS, VK, Discord, and SSH keys before they reach the LLM context.
-- **Vault Layering & Lineage Demotion:** Penalizes auto-generated logs in search results and detects architectural violations (e.g., active projects linking to archives).
-- **Graph Pathfinding:** High-performance BFS route-tracing (`MAX_NODES = 2000`) and concept clustering.
+## ⚠️ Required Dependencies
+To use the analytical tools exposed by this server, your Obsidian vault **MUST** have the following plugins installed and enabled:
+1. **[Obsidian Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api)** (For core read/write tools)
+2. **[Knowledge Analytics](https://github.com/pradigmaz/knowledge-obsidian-plugin)** (For graph/hygiene tools)
+3. **[Omnisearch](https://github.com/scambier/obsidian-omnisearch)** (Required by Knowledge Analytics for `obsidian_search_notes` and `obsidian_knowledge_smart_search`)
 
 ---
+
+## Features
+
+- **Context Under Budget:** Smart truncation prevents token exhaustion. Large search results are limited to 15,000 characters.
+- **Sensitive Data Detection:** Real-time regex censorship of AWS, VK, Discord, and SSH keys before they reach the LLM context.
+- **Vault Layering:** Detects architectural violations (e.g., active projects linking to archives).
 
 ## Tools
 
 ### Knowledge Analytics Tools
-Requires the [knowledge-obsidian-plugin](https://github.com/pradigmaz/knowledge-obsidian-plugin) running on `http://127.0.0.1:27125`.
+Requires the Knowledge Analytics plugin running on `http://127.0.0.1:27125`.
 
 | Tool Name | Description |
 |:----------|:------------|
@@ -65,9 +67,18 @@ Requires the [knowledge-obsidian-plugin](https://github.com/pradigmaz/knowledge-
 
 ## Setup & Configuration
 
-In addition to the standard upstream setup, you need the **[Knowledge Analytics](https://github.com/pradigmaz/knowledge-obsidian-plugin)** plugin installed in your vault.
+### Environment Variables
+| Variable | Description | Default |
+|:---------|:------------|:--------|
+| `OBSIDIAN_API_KEY` | **Required.** Bearer token for the Obsidian Local REST API plugin. | — |
+| `OBSIDIAN_KNOWLEDGE_URL` | Base URL of the Knowledge Analytics plugin. | `http://127.0.0.1:27125` |
+| `OBSIDIAN_BASE_URL` | Base URL of the Local REST API plugin. | `http://127.0.0.1:27123` |
+| `OBSIDIAN_READ_ONLY` | Global kill switch. When `true`, denies every write. | `false` |
 
-Client configuration:
+*(See upstream documentation for `OBSIDIAN_READ_PATHS` and `OBSIDIAN_WRITE_PATHS`)*
+
+### 1. Claude Desktop
+Add the following to your `claude_desktop_config.json`:
 
 ```json
 {
@@ -85,15 +96,16 @@ Client configuration:
 }
 ```
 
-### Environment Variables
-| Variable | Description | Default |
-|:---------|:------------|:--------|
-| `OBSIDIAN_API_KEY` | **Required.** Bearer token for the Obsidian Local REST API plugin. | — |
-| `OBSIDIAN_KNOWLEDGE_URL` | Base URL of the Knowledge Analytics plugin. | `http://127.0.0.1:27125` |
-| `OBSIDIAN_BASE_URL` | Base URL of the Local REST API plugin. | `http://127.0.0.1:27123` |
-| `OBSIDIAN_READ_ONLY` | Global kill switch. When `true`, denies every write. | `false` |
+### 2. Cursor IDE
+To use this MCP server in Cursor, open **Settings -> Features -> MCP Servers** and click **Add New MCP Server**.
 
-*(See upstream documentation for `OBSIDIAN_READ_PATHS` and `OBSIDIAN_WRITE_PATHS`)*
+- **Type:** `command`
+- **Name:** `obsidian-knowledge`
+- **Command:** 
+  You must pass the environment variables inline before the command. Use the following string:
+  ```bash
+  OBSIDIAN_API_KEY=your-local-rest-api-key bunx obsidian-mcp-server@latest
+  ```
 
 ---
 ## License
