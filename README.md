@@ -1,7 +1,8 @@
 <div align="center">
-  <h1>obsidian-mcp-server</h1>
-  <p><b>MCP server for Obsidian vaults — read, write, search, and surgically edit notes, tags, and frontmatter via the Local REST API plugin. STDIO or Streamable HTTP.</b>
-  <div>14 Tools • 3 Resources</div>
+  <h1>obsidian-knowledge-mcp</h1>
+  <p><b>MCP server for Obsidian vaults — read, write, search, and surgically edit notes, tags, and frontmatter via the Local REST API plugin. STDIO or Streamable HTTP.</b><br/>
+  <i>This project is a fork of <a href="https://github.com/cyanheads/obsidian-mcp-server">cyanheads/obsidian-mcp-server</a>, extending it with <b>Knowledge Analytics</b> graph intelligence and hygiene tools. We do not claim authorship of the base server architecture.</i>
+  <div>14 Core Tools • 6 Knowledge Tools • 3 Resources</div>
   </p>
 </div>
 
@@ -41,6 +42,17 @@ Fourteen tools grouped by shape — readers fetch notes and metadata, writers cr
 | `obsidian_delete_note` | Permanently delete a note. Elicits human confirmation when the client supports it. |
 | `obsidian_open_in_ui` | Open a file in the Obsidian app UI, with `failIfMissing` and `newLeaf` toggles. |
 | `obsidian_execute_command` | Execute an Obsidian command-palette command by ID. **Opt-in via `OBSIDIAN_ENABLE_COMMANDS=true`.** |
+
+### Knowledge Analytics Tools (Optional Extension)
+If the **Knowledge Analytics** plugin is running on `http://127.0.0.1:27125`, the following advanced tools are available:
+| Tool Name | Description |
+|:----------|:------------|
+| `obsidian_knowledge_workspace_brief` | Fast vault identity, graph summary, and top entry points. |
+| `obsidian_knowledge_smart_search` | BM25 + graph centrality ranked search. |
+| `obsidian_knowledge_health_report` | Vault hygiene scan for orphaned notes, stale hubs, and missing metadata. |
+| `obsidian_knowledge_agent_bootstrap` | Condensed bootstrap snapshot (brief + search) for starting tasks. |
+| `obsidian_knowledge_signal_memory` | Manage memory signals for agent alignment. |
+| `obsidian_knowledge_query_benchmark` | Regression testing for search queries. |
 
 ### `obsidian_get_note`
 

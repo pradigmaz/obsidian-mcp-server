@@ -26,6 +26,16 @@ import { obsidianWriteNote } from './obsidian-write-note.tool.js';
 
 export { buildSearchNotesTool } from './obsidian-search-notes.tool.js';
 
+import { obsidianKnowledgeHealthReport } from './obsidian-knowledge-health-report.tool.js';
+import { obsidianKnowledgeSmartSearch } from './obsidian-knowledge-smart-search.tool.js';
+import { obsidianKnowledgeWorkspaceBrief } from './obsidian-knowledge-workspace-brief.tool.js';
+import { obsidianKnowledgeAgentBootstrap } from './obsidian-knowledge-agent-bootstrap.tool.js';
+import { obsidianKnowledgeSignalMemoryTool } from './obsidian-knowledge-signal-memory.tool.js';
+import { obsidianKnowledgeQueryBenchmark } from './obsidian-knowledge-query-benchmark.tool.js';
+import { obsidianKnowledgeRouteTrace } from './obsidian-knowledge-route-trace.tool.js';
+import { obsidianKnowledgeConceptCluster } from './obsidian-knowledge-concept-cluster.tool.js';
+import { obsidianKnowledgeJanitorScan } from './obsidian-knowledge-janitor-scan.tool.js';
+
 /**
  * Read-only tools that don't depend on runtime probes — always registered,
  * even with `OBSIDIAN_READ_ONLY=true`. `obsidian_search_notes` is constructed
@@ -37,7 +47,19 @@ export const readToolDefinitions = [
   obsidianListNotes,
   obsidianListTags,
   obsidianOpenInUi,
+  obsidianKnowledgeHealthReport,
+  obsidianKnowledgeSmartSearch,
+  obsidianKnowledgeWorkspaceBrief,
+  obsidianKnowledgeAgentBootstrap,
+  obsidianKnowledgeSignalMemoryTool,
+  obsidianKnowledgeQueryBenchmark,
+  obsidianKnowledgeRouteTrace,
+  obsidianKnowledgeConceptCluster,
+  obsidianKnowledgeJanitorScan,
+  obsidianManageBackups,
 ];
+
+import { obsidianManageBackups } from './obsidian-manage-backups.tool.js';
 
 /** Write tools — wrapped with `disabledTool()` when `OBSIDIAN_READ_ONLY=true`. */
 export const writeToolDefinitions = [

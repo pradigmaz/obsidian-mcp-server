@@ -35,13 +35,14 @@ describe('obsidian_write_note (whole file)', () => {
     const out = await obsidianWriteNote.handler(
       obsidianWriteNote.input.parse({
         target: { type: 'path', path: 'Note.md' },
+        type: 'ordinary note',
         content: 'fresh body',
       }),
       createMockContext(),
     );
 
     expect(seenMethod).toBe('PUT');
-    expect(seenBody).toBe('fresh body');
+    expect(seenBody).toBe('---\ntype: "ordinary note"\n---\nfresh body');
     expect(seenContentType).toBe('text/markdown');
     expect(out).toEqual({
       path: 'Note.md',
@@ -66,6 +67,7 @@ describe('obsidian_write_note (whole file)', () => {
       obsidianWriteNote.handler(
         obsidianWriteNote.input.parse({
           target: { type: 'path', path: 'Note.md' },
+          type: 'ordinary note',
           content: 'replacement',
         }),
         createMockContext({ errors: obsidianWriteNote.errors }),
@@ -91,13 +93,18 @@ describe('obsidian_write_note (whole file)', () => {
     const out = await obsidianWriteNote.handler(
       obsidianWriteNote.input.parse({
         target: { type: 'path', path: 'Note.md' },
+        type: 'ordinary note',
+        title: 'Test Note',
+        description: 'A test note',
         content: 'replacement',
         overwrite: true,
       }),
       createMockContext(),
     );
 
-    expect(seenBody).toBe('replacement');
+    expect(seenBody).toBe(
+      '---\ntype: "ordinary note"\ntitle: "Test Note"\ndescription: "A test note"\n---\nreplacement',
+    );
     expect(out).toEqual({
       path: 'Note.md',
       sectionTargeted: false,
@@ -105,6 +112,58 @@ describe('obsidian_write_note (whole file)', () => {
       previousSizeInBytes: 5000,
       currentSizeInBytes: 11,
     });
+  });
+
+  it('writes recommended OKF fields and local summary alias when supplied', async () => {
+    const pool = harness.current().pool;
+    pool.intercept({ path: '/vault/Profile.md', method: 'HEAD' }).reply(404, '');
+
+    let seenBody = '';
+    pool.intercept({ path: '/vault/Profile.md', method: 'PUT' }).reply((opts) => {
+      seenBody = String(opts.body ?? '');
+      return { statusCode: 200, data: '' };
+    });
+    pool.intercept({ path: '/vault/Profile.md', method: 'HEAD' }).reply(200, '', cl(10));
+
+    await obsidianWriteNote.handler(
+      obsidianWriteNote.input.parse({
+        target: { type: 'path', path: 'Profile.md' },
+        type: 'custom:profile',
+        title: 'Garden Profile',
+        description: 'Agent-readable profile.',
+        summary: 'Legacy brief.',
+        content: 'body',
+      }),
+      createMockContext(),
+    );
+
+    expect(seenBody).toBe(
+      '---\ntype: "custom:profile"\ntitle: "Garden Profile"\ndescription: "Agent-readable profile."\nsummary: "Legacy brief."\n---\nbody',
+    );
+  });
+
+  it('is resilient against ReDoS when given a huge payload missing the closing frontmatter delimiter', async () => {
+    const pool = harness.current().pool;
+    pool.intercept({ path: '/vault/Note.md', method: 'HEAD' }).reply(404, '');
+    pool.intercept({ path: '/vault/Note.md', method: 'PUT' }).reply(200, '');
+    pool.intercept({ path: '/vault/Note.md', method: 'HEAD' }).reply(200, '', cl(100));
+
+    const hugeBody = '---\n' + 'a'.repeat(5 * 1024 * 1024);
+
+    const start = performance.now();
+    await obsidianWriteNote.handler(
+      obsidianWriteNote.input.parse({
+        target: { type: 'path', path: 'Note.md' },
+        type: 'ordinary note',
+        title: 'ReDoS Test',
+        description: 'Testing ReDoS',
+        content: hugeBody,
+      }),
+      createMockContext(),
+    );
+    const end = performance.now();
+
+    expect(end - start).toBeLessThan(500);
   });
 });
 
@@ -123,6 +182,9 @@ describe('obsidian_write_note (section)', () => {
     const out = await obsidianWriteNote.handler(
       obsidianWriteNote.input.parse({
         target: { type: 'path', path: 'Note.md' },
+        type: 'ordinary note',
+        title: 'Test Note',
+        description: 'A test note',
         section: { type: 'heading', target: 'Top::Sub' },
         content: 'replacement',
       }),
@@ -160,6 +222,9 @@ describe('obsidian_write_note (section)', () => {
     await obsidianWriteNote.handler(
       obsidianWriteNote.input.parse({
         target: { type: 'path', path: 'Note.md' },
+        type: 'ordinary note',
+        title: 'Test Note',
+        description: 'A test note',
         section: { type: 'heading', target: 'Top::Section A' },
         content: '## Section A\n\nbody line 1\nbody line 2',
       }),
@@ -183,6 +248,9 @@ describe('obsidian_write_note (section)', () => {
     await obsidianWriteNote.handler(
       obsidianWriteNote.input.parse({
         target: { type: 'path', path: 'Note.md' },
+        type: 'ordinary note',
+        title: 'Test Note',
+        description: 'A test note',
         section: { type: 'heading', target: 'Top::Section A' },
         content: '## Different Heading\n\nbody',
       }),
@@ -207,6 +275,9 @@ describe('obsidian_write_note (section)', () => {
     await obsidianWriteNote.handler(
       obsidianWriteNote.input.parse({
         target: { type: 'path', path: 'Note.md' },
+        type: 'ordinary note',
+        title: 'Test Note',
+        description: 'A test note',
         content: '{"a":1}',
         contentType: 'json',
       }),

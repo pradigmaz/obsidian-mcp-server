@@ -12,6 +12,8 @@ const ENV_KEYS = [
   'OBSIDIAN_BASE_URL',
   'OBSIDIAN_VERIFY_SSL',
   'OBSIDIAN_REQUEST_TIMEOUT_MS',
+  'OBSIDIAN_RETRY_DELAY_MS',
+  'OBSIDIAN_RETRY_ATTEMPTS',
   'OBSIDIAN_ENABLE_COMMANDS',
   'OBSIDIAN_READ_PATHS',
   'OBSIDIAN_WRITE_PATHS',
@@ -39,6 +41,8 @@ describe('getServerConfig', () => {
       baseUrl: 'http://127.0.0.1:27123',
       verifySsl: false,
       requestTimeoutMs: 30_000,
+      retryDelayMs: 100,
+      retryAttempts: 2,
       enableCommands: false,
       readPaths: undefined,
       writePaths: undefined,
@@ -74,6 +78,15 @@ describe('getServerConfig', () => {
     vi.stubEnv('OBSIDIAN_API_KEY', 'k');
     vi.stubEnv('OBSIDIAN_REQUEST_TIMEOUT_MS', '12345');
     expect(getServerConfig().requestTimeoutMs).toBe(12345);
+  });
+
+  it('coerces retry settings to numbers', () => {
+    vi.stubEnv('OBSIDIAN_API_KEY', 'k');
+    vi.stubEnv('OBSIDIAN_RETRY_DELAY_MS', '25');
+    vi.stubEnv('OBSIDIAN_RETRY_ATTEMPTS', '4');
+    const config = getServerConfig();
+    expect(config.retryDelayMs).toBe(25);
+    expect(config.retryAttempts).toBe(4);
   });
 
   it('honors a custom OBSIDIAN_BASE_URL', () => {

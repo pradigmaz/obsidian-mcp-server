@@ -28,10 +28,13 @@ export function makeTestConfig(overrides: Partial<ServerConfig> = {}): ServerCon
     baseUrl: TEST_BASE_URL,
     verifySsl: false,
     requestTimeoutMs: 5_000,
+    retryDelayMs: 0,
+    retryAttempts: 2,
     enableCommands: false,
     readPaths: undefined,
     writePaths: undefined,
     readOnly: false,
+    maxBackupsPerNote: 0,
     ...overrides,
   };
 }

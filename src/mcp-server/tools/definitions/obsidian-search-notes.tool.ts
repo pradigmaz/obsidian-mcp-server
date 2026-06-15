@@ -8,92 +8,22 @@
  * @module mcp-server/tools/definitions/obsidian-search-notes.tool
  */
 
-import { type Context, tool, z } from '@cyanheads/mcp-ts-core';
+import { tool, z } from '@cyanheads/mcp-ts-core';
 import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
-import type { RequestContext } from '@cyanheads/mcp-ts-core/utils';
-import { paginateArray } from '@cyanheads/mcp-ts-core/utils';
+import {
+  CursorSchema,
+  OmnisearchHitSchema,
+  StructuredHitSchema,
+  TextHitSchema,
+} from './_shared/search-schemas.js';
+import { clipMatches, paginate, safeJsonStringify, truncate } from './_shared/search-utils.js';
 import { getObsidianService } from '@/services/obsidian/obsidian-service.js';
 
-const DEFAULT_PAGE_SIZE = 50;
-const MAX_PAGE_SIZE = 200;
 const DEFAULT_MATCHES_PER_HIT = 10;
 /** Omnisearch's hardwired upstream cap — pagination/limit params are ignored. */
 const OMNISEARCH_UPSTREAM_CAP = 50;
 
-const CursorSchema = z
-  .string()
-  .optional()
-  .describe(
-    'Opaque cursor from a prior response. Omit for the first page. Page size is server-determined; do not assume a fixed value.',
-  );
 
-const TextHitSchema = z
-  .object({
-    filename: z.string().describe('Vault-relative path of the matching note.'),
-    matches: z
-      .array(
-        z
-          .object({
-            context: z.string().describe('Surrounding text around the match.'),
-            match: z
-              .object({
-                start: z.number().describe('Match start offset in the surrounding context.'),
-                end: z.number().describe('Match end offset in the surrounding context.'),
-              })
-              .describe('Match offsets within the context window.'),
-          })
-          .describe('A single match within a file.'),
-      )
-      .describe('Per-match context windows. Capped per file by `maxMatchesPerHit`.'),
-    totalMatches: z
-      .number()
-      .optional()
-      .describe(
-        'Total matches in this file. Present only when `matches` was clipped to `maxMatchesPerHit`.',
-      ),
-    truncated: z
-      .boolean()
-      .optional()
-      .describe(
-        'True when `matches` was clipped to `maxMatchesPerHit`. Use `obsidian_get_note` to read the full file when more context is needed.',
-      ),
-  })
-  .describe('A file with one or more text-search matches.');
-
-const StructuredHitSchema = z
-  .object({
-    filename: z.string().describe('Vault-relative path of the matching note.'),
-    result: z.unknown().describe('The query result for this file — shape determined by the query.'),
-  })
-  .describe('A file with a structured (Dataview/JSONLogic) result value.');
-
-const OmnisearchHitSchema = z
-  .object({
-    filename: z.string().describe('Vault-relative path of the matching note.'),
-    basename: z.string().describe('Note basename without extension.'),
-    score: z.number().describe('BM25 relevance score. Higher is more relevant.'),
-    foundWords: z
-      .array(z.string())
-      .describe(
-        'Query words found in the note. Populated even when no body match exists (e.g. basename-only match), so empty `matches` paired with non-empty `foundWords` is valid.',
-      ),
-    matches: z
-      .array(
-        z
-          .object({
-            match: z.string().describe('The matched substring.'),
-            offset: z.number().describe('Offset of the match within the note body.'),
-          })
-          .describe('A single match span in the note body.'),
-      )
-      .describe('Match positions within the note body. May be empty for basename-only matches.'),
-    excerpt: z
-      .string()
-      .describe(
-        'Surrounding-context excerpt with `<mark>` around matches; HTML entities are decoded and `<br>` becomes `\\n`.',
-      ),
-  })
-  .describe('An Omnisearch BM25-ranked hit.');
 
 /**
  * Build the `obsidian_search_notes` tool. The `omnisearch` mode is included
@@ -416,54 +346,4 @@ export function buildSearchNotesTool({ omnisearchReachable }: { omnisearchReacha
  */
 export const obsidianSearchNotes = buildSearchNotesTool({ omnisearchReachable: false });
 
-/**
- * Apply MCP-spec cursor pagination to a fully assembled, post-filter result
- * array. Returns the page's hits, the total pre-pagination count, and
- * `nextCursor` (omitted on the last page). Localizes the `Context` →
- * `RequestContext` cast — `paginateArray`'s signature requires the index-
- * signature shape that handler-facing `Context` doesn't carry.
- */
-function paginate<T>(
-  items: T[],
-  cursor: string | undefined,
-  ctx: Context,
-): { hits: T[]; totalCount: number; nextCursor?: string } {
-  const page = paginateArray(
-    items,
-    cursor,
-    DEFAULT_PAGE_SIZE,
-    MAX_PAGE_SIZE,
-    ctx as unknown as RequestContext,
-  );
-  return {
-    hits: page.items,
-    totalCount: page.totalCount ?? items.length,
-    ...(page.nextCursor !== undefined ? { nextCursor: page.nextCursor } : {}),
-  };
-}
 
-function clipMatches<T extends { matches: unknown[] }>(
-  hit: T,
-  cap: number,
-): T & { truncated?: boolean; totalMatches?: number } {
-  if (hit.matches.length <= cap) return hit;
-  return {
-    ...hit,
-    matches: hit.matches.slice(0, cap),
-    truncated: true,
-    totalMatches: hit.matches.length,
-  };
-}
-
-function truncate(s: string, n: number): string {
-  if (s.length <= n) return s;
-  return `${s.slice(0, n)}…`;
-}
-
-function safeJsonStringify(v: unknown): string {
-  try {
-    return JSON.stringify(v, null, 2);
-  } catch {
-    return String(v);
-  }
-}

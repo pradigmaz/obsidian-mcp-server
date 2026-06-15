@@ -8,6 +8,7 @@ import { tool, z } from '@cyanheads/mcp-ts-core';
 import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
 import { getObsidianService } from '@/services/obsidian/obsidian-service.js';
 import { ContentTypeSchema, SectionSchema, TargetSchema } from './_shared/schemas.js';
+import { OkfFrontmatterSchema } from './okf-types.js';
 
 export const obsidianWriteNote = tool('obsidian_write_note', {
   description:
@@ -15,6 +16,7 @@ export const obsidianWriteNote = tool('obsidian_write_note', {
   annotations: { idempotentHint: true, destructiveHint: true },
   input: z.object({
     target: TargetSchema.describe('Where the note lives.'),
+  }).merge(OkfFrontmatterSchema).extend({
     content: z
       .string()
       .describe(
@@ -147,7 +149,19 @@ export const obsidianWriteNote = tool('obsidian_write_note', {
       });
     }
 
-    await svc.writeNote(ctx, pathTarget, input.content, input.contentType);
+    let finalContent = input.content;
+    if (input.contentType === 'markdown') {
+      let bodyWithoutDuplicateYaml = input.content;
+      if (input.content.startsWith('---\n')) {
+        const closingIndex = input.content.indexOf('\n---\n', 4);
+        if (closingIndex !== -1) {
+          bodyWithoutDuplicateYaml = input.content.substring(closingIndex + 5);
+        }
+      }
+      finalContent = `${buildOkfFrontmatter(input)}\n${bodyWithoutDuplicateYaml}`;
+    }
+
+    await svc.writeNote(ctx, pathTarget, finalContent, input.contentType);
     const currentSizeInBytes = await svc.getSize(ctx, pathTarget);
     return {
       path,
@@ -187,4 +201,22 @@ function stripLeadingHeading(content: string, headingTarget: string): string {
   lines.shift();
   if (lines[0]?.trim() === '') lines.shift();
   return lines.join('\n');
+}
+
+function buildOkfFrontmatter(input: {
+  type: string;
+  title?: string | undefined;
+  description?: string | undefined;
+  summary?: string | undefined;
+}): string {
+  const lines = ['---', `type: ${formatYamlString(input.type)}`];
+  if (input.title) lines.push(`title: ${formatYamlString(input.title)}`);
+  if (input.description) lines.push(`description: ${formatYamlString(input.description)}`);
+  if (input.summary) lines.push(`summary: ${formatYamlString(input.summary)}`);
+  lines.push('---');
+  return lines.join('\n');
+}
+
+function formatYamlString(value: string): string {
+  return JSON.stringify(value);
 }

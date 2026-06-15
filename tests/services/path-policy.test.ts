@@ -17,6 +17,8 @@ function cfg(overrides: Partial<ServerConfig> = {}): ServerConfig {
     baseUrl: 'http://x',
     verifySsl: false,
     requestTimeoutMs: 1,
+    retryDelayMs: 0,
+    retryAttempts: 2,
     enableCommands: false,
     readPaths: undefined,
     writePaths: undefined,

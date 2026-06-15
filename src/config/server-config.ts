@@ -112,6 +112,18 @@ const ServerConfigSchema = z.object({
     .positive()
     .default(30_000)
     .describe('Per-request timeout in milliseconds.'),
+  retryDelayMs: z.coerce
+    .number()
+    .int()
+    .nonnegative()
+    .default(100)
+    .describe('Initial retry delay for idempotent Obsidian HTTP requests, in milliseconds.'),
+  retryAttempts: z.coerce
+    .number()
+    .int()
+    .nonnegative()
+    .default(2)
+    .describe('Maximum retry attempts for idempotent Obsidian HTTP requests.'),
   enableCommands: envBoolean
     .default(false)
     .describe(
@@ -138,6 +150,29 @@ const ServerConfigSchema = z.object({
         'Override URL for the Omnisearch plugin HTTP server. When unset, derives from OBSIDIAN_BASE_URL host with port 51361 (falling back to http://localhost:51361). Used to enable the optional `omnisearch` mode on `obsidian_search_notes`; if the URL is unreachable at startup, the mode is omitted from the tool schema.',
       ),
   ),
+  knowledgeUrl: z.preprocess(
+    (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
+    z
+      .string()
+      .url()
+      .default('http://127.0.0.1:27125')
+      .describe(
+        'Base URL of the Knowledge Analytics Obsidian plugin HTTP endpoint. Defaults to http://127.0.0.1:27125.',
+      ),
+  ),
+  maxBackupsPerNote: z.coerce
+    .number()
+    .int()
+    .nonnegative()
+    .default(10)
+    .describe('Maximum number of temporary backups to keep per note. Set to 0 to disable.'),
+  backupDirectory: z.preprocess(
+    (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
+    z
+      .string()
+      .optional()
+      .describe('Absolute path to a custom directory for temporary backups. Defaults to OS temp dir / knowledge-mcp-backups.'),
+  ),
 });
 
 export type ServerConfig = z.infer<typeof ServerConfigSchema>;
@@ -150,11 +185,16 @@ export function getServerConfig(): ServerConfig {
     baseUrl: 'OBSIDIAN_BASE_URL',
     verifySsl: 'OBSIDIAN_VERIFY_SSL',
     requestTimeoutMs: 'OBSIDIAN_REQUEST_TIMEOUT_MS',
+    retryDelayMs: 'OBSIDIAN_RETRY_DELAY_MS',
+    retryAttempts: 'OBSIDIAN_RETRY_ATTEMPTS',
     enableCommands: 'OBSIDIAN_ENABLE_COMMANDS',
     readPaths: 'OBSIDIAN_READ_PATHS',
     writePaths: 'OBSIDIAN_WRITE_PATHS',
     readOnly: 'OBSIDIAN_READ_ONLY',
     omnisearchUrl: 'OBSIDIAN_OMNISEARCH_URL',
+    knowledgeUrl: 'OBSIDIAN_KNOWLEDGE_URL',
+    maxBackupsPerNote: 'OBSIDIAN_MAX_BACKUPS_PER_NOTE',
+    backupDirectory: 'OBSIDIAN_BACKUP_DIRECTORY',
   });
   return _config;
 }

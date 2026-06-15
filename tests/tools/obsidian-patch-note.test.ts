@@ -31,6 +31,9 @@ describe('obsidian_patch_note', () => {
     const out = await obsidianPatchNote.handler(
       obsidianPatchNote.input.parse({
         target: { type: 'path', path: 'Note.md' },
+        type: 'ordinary note',
+        title: 'Test Note',
+        description: 'A test note',
         section: { type: 'block', target: 'abc123' },
         operation: 'prepend',
         content: 'note prefix',
@@ -65,6 +68,9 @@ describe('obsidian_patch_note', () => {
       obsidianPatchNote.handler(
         obsidianPatchNote.input.parse({
           target: { type: 'path', path: 'Missing.md' },
+          type: 'ordinary note',
+          title: 'Test Note',
+          description: 'A test note',
           section: { type: 'heading', target: 'X' },
           operation: 'append',
           content: 'y',

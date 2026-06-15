@@ -38,7 +38,12 @@ function buildService(
     upstreamHits++;
     const u = new URL(url);
     const reply = scriptedReplies?.get(u.pathname);
-    if (reply) return reply();
+    console.log("FETCH:", u.pathname, "HITS:", upstreamHits);
+    if (reply) {
+      console.log("MATCH!");
+      return reply();
+    }
+    console.log("NO MATCH! Expected one of:", scriptedReplies ? Array.from(scriptedReplies.keys()) : "none");
     throw new Error(`No mock reply for ${u.pathname}`);
   };
   return new ObsidianService(makeTestConfig(config), fetchImpl);

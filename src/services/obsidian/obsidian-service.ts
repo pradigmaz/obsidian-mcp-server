@@ -1,22 +1,12 @@
-/**
- * @fileoverview Obsidian Local REST API service. Wraps every upstream HTTP
- * endpoint we use, builds the right URL/headers/body for the consolidated
- * `target` discriminator, and classifies errors for the framework.
- * @module services/obsidian/obsidian-service
- */
-
 import type { Context } from '@cyanheads/mcp-ts-core';
-import {
-  forbidden,
-  notFound,
-  serviceUnavailable,
-  unauthorized,
-  validationError,
-} from '@cyanheads/mcp-ts-core/errors';
-import { httpErrorFromResponse, withRetry } from '@cyanheads/mcp-ts-core/utils';
-import { Agent, type Dispatcher, type RequestInit, fetch as undiciFetch } from 'undici';
-import { getServerConfig, type ServerConfig } from '@/config/server-config.js';
+import { type ServerConfig, getServerConfig } from '@/config/server-config.js';
 import { PathPolicy } from './path-policy.js';
+import { ObsidianHttpClient, type ObsidianFetch } from './core/http-client.js';
+import { BackupManager } from './gatekeeper/backup-manager.js';
+import { LintClient } from './gatekeeper/lint-client.js';
+import { NoteApi } from './api/note-api.js';
+import { SearchApi } from './api/search-api.js';
+import { VaultApi } from './api/vault-api.js';
 import type {
   DocumentMap,
   FileListing,
@@ -31,225 +21,70 @@ import type {
   VaultStatus,
 } from './types.js';
 
-type UndiciResponse = Awaited<ReturnType<typeof undiciFetch>>;
+export { encodeVaultPath } from './obsidian-utils.js';
 
 /**
- * The HTTP fetch contract this service depends on. Defaults to undici's
- * `fetch`; tests inject a stub here instead of mocking the `undici` module
- * (Bun's runtime treats `undici` as a builtin, so `vi.mock('undici')` has no
- * effect under `bunx vitest`).
+ * ObsidianService Facade
+ * 
+ * This class serves as the single entry point for all Obsidian operations,
+ * preserving backward compatibility with all existing MCP tools. It delegates
+ * actual work to domain-specific APIs and infrastructure classes.
  */
-export type ObsidianFetch = (
-  url: string,
-  init: RequestInit & { dispatcher?: Dispatcher; signal?: AbortSignal },
-) => Promise<UndiciResponse>;
-
-interface UpstreamErrorBody {
-  errorCode?: number;
-  message?: string;
-  [k: string]: unknown;
-}
-
-/**
- * Upstream "list files" payload. The plugin returns a flat `files` array where
- * directory entries end with `/`. Callers split into files vs. directories.
- */
-interface RawFileListing {
-  files: string[];
-}
-
-interface RawTagsListing {
-  tags: ObsidianTag[];
-  totalDirectTags?: number;
-  totalFileTags?: number;
-}
-
-interface RawSimpleSearchHit {
-  filename: string;
-  matches: Array<{ context: string; match: { start: number; end: number } }>;
-  score?: number;
-}
-
-interface RawStructuredSearchHit {
-  filename: string;
-  result: unknown;
-}
-
-/**
- * Upstream Omnisearch payload. The plugin returns one of these per file; we
- * rename `path` to `filename` on the way out so `PathPolicy.filterReadable`
- * can match the shape, and drop `vault` since this server is single-vault.
- */
-interface RawOmnisearchHit {
-  basename: string;
-  excerpt: string;
-  foundWords: string[];
-  matches: Array<{ match: string; offset: number }>;
-  path: string;
-  score: number;
-  vault?: string;
-}
-
-/** Per-call timeout for the startup probe — covers the 4-tuple TCP handshake + a tiny GET. */
-const OMNISEARCH_PROBE_TIMEOUT_MS = 500;
-
-const OMNISEARCH_DEFAULT_PORT = '51361';
-
-const NOTE_JSON_ACCEPT = 'application/vnd.olrapi.note+json';
-const DOCUMENT_MAP_ACCEPT = 'application/vnd.olrapi.document-map+json';
-const JSONLOGIC_CT = 'application/vnd.olrapi.jsonlogic+json';
-
-/**
- * Methods safe to retry on transient errors. POST/PATCH are excluded — a
- * successful upstream write with a lost response would double-apply on retry
- * (duplicate `append`, re-run Obsidian command).
- */
-const RETRY_SAFE_METHODS: ReadonlySet<string> = new Set(['GET', 'PUT', 'DELETE']);
-
 export class ObsidianService {
-  readonly #config: ServerConfig;
-  readonly #dispatcher: Dispatcher;
-  readonly #fetch: ObsidianFetch;
+  readonly #http: ObsidianHttpClient;
   readonly #policy: PathPolicy;
-  readonly #omnisearchUrl: string;
+  readonly #backup: BackupManager;
+  readonly #lint: LintClient;
+  
+  readonly #noteApi: NoteApi;
+  readonly #searchApi: SearchApi;
+  readonly #vaultApi: VaultApi;
 
-  /**
-   * @param config - Validated server config (api key, base URL, TLS, timeouts).
-   * @param fetchImpl - Optional fetch override for tests. Defaults to undici's
-   *   `fetch`, which honors the constructed TLS dispatcher in production.
-   */
   constructor(config: ServerConfig, fetchImpl?: ObsidianFetch) {
-    this.#config = config;
+    this.#http = new ObsidianHttpClient(config, fetchImpl);
     this.#policy = new PathPolicy(config);
-    this.#omnisearchUrl = deriveOmnisearchUrl(config);
-    /**
-     * Bun's runtime ignores undici's per-dispatcher `connect.rejectUnauthorized`
-     * option, so the only reliable opt-out under Bun is the process-wide
-     * `NODE_TLS_REJECT_UNAUTHORIZED=0` flag. Node honors the dispatcher option
-     * (set below), so the env var fallback is scoped to Bun to avoid mutating
-     * process-wide TLS behavior on Node. Default Obsidian Local REST API ships
-     * a self-signed cert, so most users run with `OBSIDIAN_VERIFY_SSL=false`.
-     */
-    if (!config.verifySsl && typeof (globalThis as { Bun?: unknown }).Bun !== 'undefined') {
-      process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-    }
-    this.#dispatcher = new Agent({
-      connect: { rejectUnauthorized: config.verifySsl },
-      headersTimeout: config.requestTimeoutMs,
-      bodyTimeout: config.requestTimeoutMs,
-    });
-    this.#fetch = fetchImpl ?? (undiciFetch as ObsidianFetch);
+    this.#backup = new BackupManager(config);
+    this.#lint = new LintClient(this.#http);
+    
+    this.#noteApi = new NoteApi(this.#http, this.#policy, this.#backup, this.#lint);
+    this.#searchApi = new SearchApi(this.#http, config);
+    this.#vaultApi = new VaultApi(this.#http, this.#policy);
   }
 
-  /** Path-policy accessor — used by `obsidian_search_notes` to filter hits. */
   get policy(): PathPolicy {
     return this.#policy;
   }
 
-  /** Resolved Omnisearch URL (derived from baseUrl or OBSIDIAN_OMNISEARCH_URL override). */
   get omnisearchUrl(): string {
-    return this.#omnisearchUrl;
+    return this.#searchApi.omnisearchUrl;
   }
 
   // ── Status ───────────────────────────────────────────────────────────────
 
   async getStatus(ctx: Context): Promise<VaultStatus> {
-    const res = await this.#request(ctx, '/', { method: 'GET', skipAuth: true });
-    return (await res.json()) as VaultStatus;
+    return this.#vaultApi.getStatus(ctx);
   }
 
-  /**
-   * Probe whether the configured `OBSIDIAN_API_KEY` is accepted. Hits the
-   * authenticated `/vault/` listing endpoint and reports `true` only on a 2xx
-   * response. Network/auth errors yield `false` — the resource caller wants a
-   * boolean, not an exception. Aborts are re-thrown so cancellation/timeout
-   * doesn't masquerade as an auth failure.
-   */
   async probeAuthenticated(ctx: Context): Promise<boolean> {
-    try {
-      const res = await this.#fetch(`${this.#config.baseUrl}/vault/`, {
-        method: 'GET',
-        headers: { Authorization: `Bearer ${this.#config.apiKey}` },
-        dispatcher: this.#dispatcher,
-        signal: ctx.signal,
-      });
-      return res.ok;
-    } catch (err) {
-      if (ctx.signal?.aborted) throw err;
-      return false;
-    }
+    return this.#vaultApi.probeAuthenticated(ctx);
   }
 
   // ── Notes ────────────────────────────────────────────────────────────────
 
   async getNoteContent(ctx: Context, target: NoteTarget): Promise<string> {
-    if (target.type === 'path') {
-      this.#policy.assertReadable(target.path);
-      const url = this.#targetToPath(target);
-      const res = await this.#request(ctx, url, {
-        method: 'GET',
-        headers: { Accept: 'text/markdown' },
-      });
-      return await res.text();
-    }
-    /**
-     * Non-path target with restrictions: route via JSON to learn the resolved
-     * path, gate it, then return the content. Costs a single JSON fetch
-     * instead of the markdown one — only paid by users who configured a path
-     * scope.
-     */
-    if (!this.#policy.isUnrestricted) {
-      const note = await this.getNoteJson(ctx, target);
-      return note.content;
-    }
-    const url = this.#targetToPath(target);
-    const res = await this.#request(ctx, url, {
-      method: 'GET',
-      headers: { Accept: 'text/markdown' },
-    });
-    return await res.text();
+    return this.#noteApi.getNoteContent(ctx, target);
   }
 
   async getNoteJson(ctx: Context, target: NoteTarget): Promise<NoteJson> {
-    if (target.type === 'path') {
-      this.#policy.assertReadable(target.path);
-    }
-    const note = await this.#rawGetNoteJson(ctx, target);
-    if (target.type !== 'path') {
-      this.#policy.assertReadable(note.path);
-    }
-    return note;
+    return this.#noteApi.getNoteJson(ctx, target);
   }
 
-  /**
-   * Resolve `target` to a vault-relative path. For path targets this is a
-   * no-op; for `active` and `periodic` targets we have to ask upstream which
-   * concrete file is currently in play.
-   */
   async resolvePath(ctx: Context, target: NoteTarget): Promise<string> {
-    if (target.type === 'path') return target.path;
-    return (await this.getNoteJson(ctx, target)).path;
+    return this.#noteApi.resolvePath(ctx, target);
   }
 
   async getDocumentMap(ctx: Context, target: NoteTarget): Promise<DocumentMap> {
-    if (target.type === 'path') {
-      this.#policy.assertReadable(target.path);
-      return this.#rawGetDocumentMap(ctx, target);
-    }
-    if (this.#policy.isUnrestricted) {
-      return this.#rawGetDocumentMap(ctx, target);
-    }
-    /**
-     * Restricted + non-path: parallel-fetch the document map and resolve the
-     * path so we can gate. If the gate denies, the parallel fetch result is
-     * discarded — acceptable cost given the rarity of this configuration.
-     */
-    const [path, map] = await Promise.all([
-      this.resolvePath(ctx, target),
-      this.#rawGetDocumentMap(ctx, target),
-    ]);
-    this.#policy.assertReadable(path);
-    return map;
+    return this.#noteApi.getDocumentMap(ctx, target);
   }
 
   async writeNote(
@@ -258,13 +93,7 @@ export class ObsidianService {
     content: string,
     contentType: 'markdown' | 'json' = 'markdown',
   ): Promise<void> {
-    const safe = await this.#gateAsWrite(ctx, target);
-    const url = this.#targetToPath(safe);
-    await this.#request(ctx, url, {
-      method: 'PUT',
-      headers: { 'Content-Type': contentType === 'json' ? 'application/json' : 'text/markdown' },
-      body: content,
-    });
+    return this.#noteApi.writeNote(ctx, target, content, contentType);
   }
 
   async appendToNote(
@@ -273,13 +102,7 @@ export class ObsidianService {
     content: string,
     contentType: 'markdown' | 'json' = 'markdown',
   ): Promise<void> {
-    const safe = await this.#gateAsWrite(ctx, target);
-    const url = this.#targetToPath(safe);
-    await this.#request(ctx, url, {
-      method: 'POST',
-      headers: { 'Content-Type': contentType === 'json' ? 'application/json' : 'text/markdown' },
-      body: content,
-    });
+    return this.#noteApi.appendToNote(ctx, target, content, contentType);
   }
 
   async patchNote(
@@ -288,638 +111,85 @@ export class ObsidianService {
     content: string,
     headers: PatchHeaders,
   ): Promise<void> {
-    const safe = await this.#gateAsWrite(ctx, target);
-    const url = this.#targetToPath(safe);
-    await this.#request(ctx, url, {
-      method: 'PATCH',
-      headers: this.#buildPatchHeaders(headers),
-      body: content,
-    });
+    return this.#noteApi.patchNote(ctx, target, content, headers);
   }
 
   async deleteNote(ctx: Context, target: NoteTarget): Promise<void> {
-    const safe = await this.#gateAsWrite(ctx, target);
-    const url = this.#targetToPath(safe);
-    await this.#request(ctx, url, { method: 'DELETE' });
+    return this.#noteApi.deleteNote(ctx, target);
   }
 
-  /**
-   * Byte size of a note at `target`, derived from the HEAD `Content-Length`
-   * header. Returns `null` on 404 — distinct from a 0-byte file.
-   *
-   * Source-of-truth rule for note byte sizes across mutating tools:
-   *   1. HEAD `Content-Length` (this method)       — when no GET is in flight.
-   *   2. `Buffer.byteLength(deliveredContent)`     — when a GET happens anyway (free).
-   *   3. `note.stat.size` from the JSON envelope   — REJECTED: shares the upstream
-   *      `getAbstractFileByPath` cache path with the rest of the envelope, so it
-   *      can't act as an independent cross-check (cache-desync scenario in
-   *      coddingtonbear/obsidian-local-rest-api#237). Always prefer delivered
-   *      bytes or HEAD over the metadata field.
-   *
-   * Bypasses retries (a 404 is the answer, not a transient failure) and
-   * gates readable on path targets before issuing the HEAD.
-   */
   async tryGetSize(ctx: Context, target: NoteTarget): Promise<number | null> {
-    if (target.type === 'path') {
-      this.#policy.assertReadable(target.path);
-    }
-    const url = this.#targetToPath(target);
-    const res = await this.#fetch(`${this.#config.baseUrl}${url}`, {
-      method: 'HEAD',
-      headers: { Authorization: `Bearer ${this.#config.apiKey}` },
-      dispatcher: this.#dispatcher,
-      signal: ctx.signal,
-    });
-    if (res.status === 404) return null;
-    if (!res.ok) await this.#throwForStatus(res, url, ctx);
-    return parseContentLength(res, url);
+    return this.#noteApi.tryGetSize(ctx, target);
   }
 
-  /**
-   * Like `tryGetSize`, but throws `note_missing` on 404 — for verification
-   * reads that come *after* a write where the file is expected to exist.
-   */
   async getSize(ctx: Context, target: NoteTarget): Promise<number> {
-    const size = await this.tryGetSize(ctx, target);
-    if (size === null) {
-      const display = target.type === 'path' ? target.path : '(target)';
-      throw notFound(`Note not found: ${display}`, {
-        path: display,
-        reason: 'note_missing',
-        ...ctx.recoveryFor('note_missing'),
-      });
-    }
-    return size;
+    return this.#noteApi.getSize(ctx, target);
   }
 
   // ── Listings ─────────────────────────────────────────────────────────────
 
   async listFiles(ctx: Context, dirPath?: string): Promise<FileListing> {
-    let url = '/vault/';
-    let normalized = '';
-    if (dirPath) {
-      normalized = dirPath.replace(/^\/+|\/+$/g, '');
-      if (normalized) url = `/vault/${encodeVaultPath(normalized)}/`;
-    }
-    /**
-     * Gate the directory itself when it's non-empty — root listings always
-     * pass so users can navigate into their scope. Children aren't filtered
-     * here; the per-file read gate on `getNoteContent` etc. catches access to
-     * out-of-scope individual notes.
-     */
-    if (normalized) {
-      this.#policy.assertReadable(normalized);
-    }
-    const res = await this.#request(ctx, url, { method: 'GET' });
-    return (await res.json()) as RawFileListing;
+    return this.#vaultApi.listFiles(ctx, dirPath);
   }
 
   async listTags(ctx: Context): Promise<ObsidianTag[]> {
-    const res = await this.#request(ctx, '/tags/', { method: 'GET' });
-    const body = (await res.json()) as RawTagsListing;
-    return body.tags ?? [];
+    return this.#vaultApi.listTags(ctx);
   }
 
   async listCommands(ctx: Context): Promise<ObsidianCommand[]> {
-    const res = await this.#request(ctx, '/commands/', { method: 'GET' });
-    const body = (await res.json()) as { commands: ObsidianCommand[] };
-    return body.commands ?? [];
+    return this.#vaultApi.listCommands(ctx);
   }
 
   // ── Search ───────────────────────────────────────────────────────────────
 
   async searchText(ctx: Context, query: string, contextLength = 100): Promise<TextSearchHit[]> {
-    const params = new URLSearchParams({ query, contextLength: String(contextLength) });
-    const res = await this.#request(ctx, `/search/simple/?${params}`, { method: 'POST' });
-    const raw = (await res.json()) as RawSimpleSearchHit[];
-    // Upstream returns a constant `score` that carries no ranking signal for
-    // text mode — drop it on the way out so consumers don't mistake it for
-    // relevance. Omnisearch is the source of real BM25 ranking.
-    return raw.map((h) => ({ filename: h.filename, matches: h.matches }));
+    return this.#searchApi.searchText(ctx, query, contextLength);
   }
 
   async searchJsonLogic(
     ctx: Context,
     logic: Record<string, unknown>,
   ): Promise<StructuredSearchHit[]> {
-    const res = await this.#request(ctx, '/search/', {
-      method: 'POST',
-      headers: { 'Content-Type': JSONLOGIC_CT },
-      body: JSON.stringify(logic),
-    });
-    return (await res.json()) as RawStructuredSearchHit[];
+    return this.#searchApi.searchJsonLogic(ctx, logic);
   }
 
-  /**
-   * One-shot startup probe for the Omnisearch plugin's HTTP endpoint. Returns
-   * `true` only when the response is `HTTP 200`, declares `application/json`,
-   * and the body parses as a JSON array — unrouted paths on the Omnisearch
-   * server also return `200` with an empty body, so status alone is
-   * insufficient. The entry point passes the return value into the
-   * `obsidian_search_notes` factory to decide whether to expose the
-   * `omnisearch` mode.
-   */
   async probeOmnisearch(signal?: AbortSignal): Promise<boolean> {
-    const probeSignal = signal ?? AbortSignal.timeout(OMNISEARCH_PROBE_TIMEOUT_MS);
-    try {
-      const res = await this.#fetch(`${this.#omnisearchUrl}/search?q=`, {
-        method: 'GET',
-        dispatcher: this.#dispatcher,
-        signal: probeSignal,
-      });
-      if (!res.ok) return false;
-      const contentType = res.headers.get('content-type') ?? '';
-      if (!contentType.toLowerCase().includes('application/json')) return false;
-      const body = await res.json().catch(() => undefined);
-      return Array.isArray(body);
-    } catch {
-      return false;
-    }
+    return this.#searchApi.probeOmnisearch(signal);
   }
 
-  /**
-   * Query the Omnisearch HTTP endpoint. Normalizes the response on the way
-   * out: decodes HTML entities + `<br>` → `\n` in `excerpt`, renames `path`
-   * to `filename`, and drops `vault`. Throws `omnisearch_unreachable`
-   * (ServiceUnavailable) on network failures or non-2xx responses — the
-   * plugin can shut down mid-session (Obsidian quits, plugin disabled), and
-   * the tool needs a distinct signal from the upstream's success cases.
-   */
   async searchOmnisearch(ctx: Context, query: string): Promise<OmnisearchHit[]> {
-    const url = `${this.#omnisearchUrl}/search?q=${encodeURIComponent(query)}`;
-    let res: UndiciResponse;
-    try {
-      res = await this.#fetch(url, {
-        method: 'GET',
-        dispatcher: this.#dispatcher,
-        signal: ctx.signal,
-      });
-    } catch (err) {
-      if (ctx.signal?.aborted) throw err;
-      throw serviceUnavailable(
-        `Omnisearch unreachable at ${this.#omnisearchUrl}. The plugin may have stopped (Obsidian quit, plugin disabled, or mobile session).`,
-        {
-          reason: 'omnisearch_unreachable',
-          url: this.#omnisearchUrl,
-          ...ctx.recoveryFor('omnisearch_unreachable'),
-        },
-        { cause: err },
-      );
-    }
-    if (!res.ok) {
-      throw serviceUnavailable(
-        `Omnisearch returned HTTP ${res.status} at ${this.#omnisearchUrl}.`,
-        {
-          reason: 'omnisearch_unreachable',
-          url: this.#omnisearchUrl,
-          status: res.status,
-          ...ctx.recoveryFor('omnisearch_unreachable'),
-        },
-      );
-    }
-    const body = (await res.json()) as RawOmnisearchHit[];
-    return body.map(normalizeOmnisearchHit);
+    return this.#searchApi.searchOmnisearch(ctx, query);
   }
 
   // ── UI / commands ────────────────────────────────────────────────────────
 
   async executeCommand(ctx: Context, commandId: string): Promise<void> {
-    await this.#request(ctx, `/commands/${encodeURIComponent(commandId)}/`, { method: 'POST' });
+    return this.#vaultApi.executeCommand(ctx, commandId);
   }
 
   async openInUi(ctx: Context, path: string, opts?: { newLeaf?: boolean }): Promise<void> {
-    /** Gated as a read — opening a note in the UI doesn't mutate its content. */
-    this.#policy.assertReadable(path);
-    const params = new URLSearchParams();
-    if (opts?.newLeaf) params.set('newLeaf', 'true');
-    const qs = params.toString();
-    await this.#request(ctx, `/open/${encodeVaultPath(path)}${qs ? `?${qs}` : ''}`, {
-      method: 'POST',
-    });
-  }
-
-  // ── Internals ────────────────────────────────────────────────────────────
-
-  /**
-   * Resolve a write target to a gated path target. For path inputs, gates
-   * `target.path` as a write before any upstream call. For non-path inputs
-   * (`active` / `periodic`) when restrictions are active, a JSON resolution
-   * fetch happens first (without gating, since the user has write authority
-   * on the resolved path or fails here), then the resolved path is gated.
-   */
-  async #gateAsWrite(ctx: Context, target: NoteTarget): Promise<NoteTarget> {
-    if (target.type === 'path') {
-      this.#policy.assertWritable(target.path);
-      return target;
-    }
-    if (this.#policy.isUnrestricted) {
-      return target;
-    }
-    const note = await this.#rawGetNoteJson(ctx, target);
-    this.#policy.assertWritable(note.path);
-    return { type: 'path', path: note.path };
-  }
-
-  /** Raw NoteJson fetch — bypasses path-policy. Used by gate helpers to learn the resolved path. */
-  async #rawGetNoteJson(ctx: Context, target: NoteTarget): Promise<NoteJson> {
-    const url = this.#targetToPath(target);
-    const res = await this.#request(ctx, url, {
-      method: 'GET',
-      headers: { Accept: NOTE_JSON_ACCEPT },
-    });
-    return (await res.json()) as NoteJson;
-  }
-
-  /** Raw document-map fetch — bypasses path-policy. Caller must gate. */
-  async #rawGetDocumentMap(ctx: Context, target: NoteTarget): Promise<DocumentMap> {
-    const url = this.#targetToPath(target);
-    const res = await this.#request(ctx, url, {
-      method: 'GET',
-      headers: { Accept: DOCUMENT_MAP_ACCEPT },
-    });
-    return (await res.json()) as DocumentMap;
-  }
-
-  #targetToPath(target: NoteTarget): string {
-    switch (target.type) {
-      case 'path':
-        return `/vault/${encodeVaultPath(target.path)}`;
-      case 'active':
-        return '/active/';
-      case 'periodic': {
-        if (target.date) {
-          const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(target.date);
-          if (!m) {
-            throw validationError(`Invalid date '${target.date}', expected YYYY-MM-DD.`);
-          }
-          const [, y, mo, d] = m;
-          return `/periodic/${target.period}/${y}/${mo}/${d}/`;
-        }
-        return `/periodic/${target.period}/`;
-      }
-    }
-  }
-
-  #buildPatchHeaders(p: PatchHeaders): Record<string, string> {
-    const headers: Record<string, string> = {
-      Operation: p.operation,
-      'Target-Type': p.targetType,
-      Target: encodeURIComponent(p.target),
-      'Content-Type': p.contentType === 'json' ? 'application/json' : 'text/markdown',
-    };
-    if (p.targetDelimiter) headers['Target-Delimiter'] = p.targetDelimiter;
-    if (p.createTargetIfMissing) headers['Create-Target-If-Missing'] = 'true';
-    /**
-     * Sense inversion: markdown-patch 1.0 (shipped with Local REST API v4.0.0)
-     * renamed `Apply-If-Content-Preexists` to `Reject-If-Content-Preexists`
-     * and flipped the default — patches now apply regardless of duplicates
-     * unless the caller opts into rejection. We keep `applyIfContentPreexists`
-     * on the public schema for caller stability and translate here: a falsy
-     * value (the public default) sends the new Reject header to preserve the
-     * historical idempotent-by-default behavior. Replace operations are
-     * exempt at the plugin layer regardless of this flag.
-     */
-    if (!p.applyIfContentPreexists) headers['Reject-If-Content-Preexists'] = 'true';
-    if (p.trimTargetWhitespace) headers['Trim-Target-Whitespace'] = 'true';
-    return headers;
-  }
-
-  #request(
-    ctx: Context,
-    pathAndQuery: string,
-    init: {
-      method: string;
-      headers?: Record<string, string>;
-      body?: string;
-      skipAuth?: boolean;
-    },
-  ): Promise<UndiciResponse> {
-    const url = `${this.#config.baseUrl}${pathAndQuery}`;
-    const headers: Record<string, string> = { ...(init.headers ?? {}) };
-    if (!init.skipAuth) {
-      headers.Authorization = `Bearer ${this.#config.apiKey}`;
-    }
-
-    const exec = async (): Promise<UndiciResponse> => {
-      const res = await this.#fetch(url, {
-        method: init.method,
-        headers,
-        ...(init.body !== undefined ? { body: init.body } : {}),
-        dispatcher: this.#dispatcher,
-        signal: ctx.signal,
-      });
-      if (!res.ok) {
-        await this.#throwForStatus(res, pathAndQuery, ctx);
-      }
-      return res;
-    };
-
-    if (!RETRY_SAFE_METHODS.has(init.method.toUpperCase())) {
-      return exec();
-    }
-
-    return withRetry(exec, {
-      operation: `obsidian.${init.method} ${pathAndQuery}`,
-      context: {
-        requestId: ctx.requestId,
-        timestamp: ctx.timestamp,
-        ...(ctx.tenantId !== undefined ? { tenantId: ctx.tenantId } : {}),
-        ...(ctx.traceId !== undefined ? { traceId: ctx.traceId } : {}),
-        ...(ctx.spanId !== undefined ? { spanId: ctx.spanId } : {}),
-      },
-      baseDelayMs: 200,
-      maxRetries: 3,
-      signal: ctx.signal,
-    });
-  }
-
-  async #throwForStatus(res: UndiciResponse, path: string, ctx: Context): Promise<never> {
-    const text = await this.#readBodySafe(res);
-    const body = parseJsonObject(text);
-    const display = displayPath(path);
-    const upstream = safeUpstream(body, text);
-    const data = (reason?: string) => ({
-      path: display,
-      ...(reason !== undefined ? { reason, ...ctx.recoveryFor(reason) } : {}),
-      ...(upstream ? { upstream } : {}),
-    });
-
-    switch (res.status) {
-      case 401:
-        throw unauthorized(
-          'Obsidian Local REST API rejected the API key. Verify OBSIDIAN_API_KEY matches the value in Obsidian → Settings → Local REST API.',
-          data(),
-        );
-      case 403:
-        throw forbidden(
-          'Obsidian Local REST API forbids this request. Check the plugin permissions.',
-          data(),
-        );
-      case 404: {
-        if (path.startsWith('/active/')) {
-          throw notFound(
-            'No file is currently active in Obsidian — open a file in the app first.',
-            data('no_active_file'),
-          );
-        }
-        if (path.startsWith('/periodic/')) {
-          const periodMatch = /^\/periodic\/(daily|weekly|monthly|quarterly|yearly)\//.exec(path);
-          const period = periodMatch?.[1] ?? 'periodic';
-          const dateMatch = /\/(\d{4})\/(\d{2})\/(\d{2})\/?$/.exec(path);
-          const suffix = dateMatch ? ` for ${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}` : '';
-          throw notFound(
-            `No ${period} note found${suffix}. Check that the Periodic Notes plugin is enabled and the note exists.`,
-            data('periodic_not_found'),
-          );
-        }
-        if (path.startsWith('/commands/')) {
-          throw notFound(
-            `Unknown Obsidian command: ${display}. Use \`obsidian_list_commands\` to discover valid command IDs.`,
-            data('command_unknown'),
-          );
-        }
-        throw notFound(`Not found: ${display}`, data('note_missing'));
-      }
-      case 405:
-        throw validationError(
-          `${display} cannot accept this method (often: the path is a directory, not a file).`,
-          data('path_is_directory'),
-        );
-      case 400: {
-        const upstreamMsg = body?.message ?? `Bad request to ${display}`;
-        // Content-preexists is a more specific case nested inside the broader
-        // "could not be applied" family — branch on it first so retries with
-        // identical content surface the right reason and recovery (toggle
-        // `applyIfContentPreexists`) instead of misleading section-miss copy.
-        if (/content-already-preexists-in-target/i.test(upstreamMsg)) {
-          throw validationError(
-            `The supplied content already appears at the target in ${display}. Pass \`applyIfContentPreexists: true\` to force-apply, or change the content.`,
-            data('content_preexists'),
-          );
-        }
-        // The Local REST API returns a "could not be applied to the target
-        // content" / "invalid-target" message when a PATCH names a section that
-        // doesn't exist. Translate to actionable guidance.
-        const isTargetMiss = /\bcould not be applied\b|\binvalid-target\b/i.test(upstreamMsg);
-        if (isTargetMiss) {
-          throw validationError(
-            `Section target not found in ${display}. Use \`obsidian_get_note\` with \`format: "document-map"\` to list available headings, blocks, and frontmatter fields. Nested headings need \`Parent::Child\` syntax.`,
-            data('section_target_missing'),
-          );
-        }
-        // Periodic Notes plugin returns 400 with "Specified period is not enabled"
-        // when the requested period (daily/weekly/monthly/...) is disabled in the
-        // user's plugin settings. Distinct from periodic_not_found (404) — caller
-        // can enable it or fall back to an explicit path target.
-        if (path.startsWith('/periodic/') && /\bnot enabled\b/i.test(upstreamMsg)) {
-          throw validationError(upstreamMsg, data('periodic_disabled'));
-        }
-        throw validationError(upstreamMsg, data());
-      }
-      default: {
-        /**
-         * Unhandled 4xx and all 5xx — route through the framework helper so we
-         * get the canonical status→code mapping (500/501→InternalError,
-         * 502/503→ServiceUnavailable, 504→Timeout) and Retry-After capture.
-         * Body has already been consumed above, so disable the helper's read
-         * and pass the truncated body in via `data`.
-         */
-        const truncated = text ? (text.length > 500 ? `${text.slice(0, 500)}…` : text) : undefined;
-        throw await httpErrorFromResponse(res, {
-          service: 'Obsidian Local REST API',
-          captureBody: false,
-          data: {
-            ...data(),
-            ...(truncated !== undefined ? { body: truncated } : {}),
-          },
-        });
-      }
-    }
-  }
-
-  async #readBodySafe(res: UndiciResponse): Promise<string> {
-    try {
-      return await res.text();
-    } catch {
-      return '';
-    }
+    return this.#vaultApi.openInUi(ctx, path, opts);
   }
 }
 
-/**
- * Encode a vault-relative path for the URL. Splits on `/` and `\` (so
- * Windows-style separators are honored), URL-encodes each segment, and
- * rejoins with `/` since the Local REST API plugin expects forward slashes.
- *
- * Rejects `.` and `..` segments here rather than relying on the upstream Local
- * REST API plugin to normalize them — `PathPolicy` short-circuits to "allow"
- * when `OBSIDIAN_READ_PATHS` is unset, and `..` is unreserved per RFC 3986 so
- * `encodeURIComponent` leaves it intact. This is the single chokepoint before
- * URL construction, so guard vault escape here. Backslash is treated as a
- * separator so `..\..\etc` traverses identically to `../../etc` and can't
- * sneak past as a single opaque segment.
- */
-export function encodeVaultPath(path: string): string {
-  const segments = path.split(/[/\\]/).filter((seg) => seg.length > 0);
-  for (const seg of segments) {
-    if (seg === '.' || seg === '..') {
-      throw validationError(`Path traversal not allowed: '${path}'`, {
-        path,
-        reason: 'path_traversal',
-      });
-    }
+// Global instance cache
+let instance: ObsidianService | undefined;
+
+export function getObsidianService(): ObsidianService {
+  if (!instance) {
+    throw new Error('ObsidianService not initialized. Call initObsidianService() first.');
   }
-  return segments.map((seg) => encodeURIComponent(seg)).join('/');
+  return instance;
 }
-
-/**
- * Convert an internal URL path (e.g. `/vault/Projects/My%20Note.md`) to the
- * vault-relative form a caller would recognize. Used in error messages so the
- * user sees the same path they sent in.
- */
-function displayPath(urlPath: string): string {
-  if (urlPath.startsWith('/active/')) return '(active file)';
-  const noQuery = urlPath.split('?')[0] ?? urlPath;
-  let decoded: string;
-  try {
-    decoded = decodeURIComponent(noQuery);
-  } catch {
-    decoded = noQuery;
-  }
-  const periodic =
-    /^\/periodic\/(daily|weekly|monthly|quarterly|yearly)\/(?:(\d{4})\/(\d{2})\/(\d{2})\/?)?$/.exec(
-      decoded,
-    );
-  if (periodic) {
-    const [, period, y, mo, d] = periodic;
-    return y && mo && d
-      ? `${period} note for ${y}-${mo}-${d}`
-      : `${period} note for the current period`;
-  }
-  for (const prefix of ['/vault/', '/open/', '/commands/']) {
-    if (decoded.startsWith(prefix)) {
-      return decoded.slice(prefix.length).replace(/\/+$/, '') || decoded;
-    }
-  }
-  return decoded;
-}
-
-/**
- * Trim the upstream error body down to a safe, user-presentable shape — drops
- * `errorCode` and any other plugin-internal fields that would otherwise leak
- * into JSON-RPC `error.data`.
- */
-function safeUpstream(
-  body: UpstreamErrorBody | undefined,
-  text: string,
-): { message: string } | undefined {
-  if (body?.message) return { message: body.message };
-  const trimmed = text.trim();
-  if (trimmed) return { message: trimmed.length > 200 ? `${trimmed.slice(0, 200)}…` : trimmed };
-  return;
-}
-
-/**
- * Read the `Content-Length` header from a HEAD response and parse it as a
- * non-negative integer byte count. Throws when the upstream omits the header
- * or returns a non-numeric value — the size helpers don't fall back to GET.
- */
-function parseContentLength(res: UndiciResponse, url: string): number {
-  const raw = res.headers.get('content-length');
-  if (raw === null) {
-    throw new Error(
-      `Obsidian Local REST API HEAD response missing Content-Length header for ${url}.`,
-    );
-  }
-  const n = Number(raw);
-  if (!Number.isInteger(n) || n < 0) {
-    throw new Error(`Obsidian Local REST API returned invalid Content-Length '${raw}' for ${url}.`);
-  }
-  return n;
-}
-
-/**
- * Resolve the Omnisearch URL. Override wins. Otherwise: take the host from
- * `OBSIDIAN_BASE_URL`, force `http:` (Omnisearch is HTTP-only), swap port
- * `27123/27124` → `51361`. `127.0.0.1` is mapped to `localhost` since
- * Omnisearch's current Node listener binds IPv4 only but the platform's
- * loopback resolver is flexible — `localhost` insulates us if a future
- * build switches binding. Falls back to `http://localhost:51361` on any
- * URL parse failure (config validation catches malformed `baseUrl`, so this
- * is belt-and-suspenders).
- */
-function deriveOmnisearchUrl(config: ServerConfig): string {
-  if (config.omnisearchUrl) return config.omnisearchUrl.replace(/\/+$/, '');
-  try {
-    const u = new URL(config.baseUrl);
-    const host = u.hostname === '127.0.0.1' ? 'localhost' : u.hostname;
-    return `http://${host}:${OMNISEARCH_DEFAULT_PORT}`;
-  } catch {
-    return `http://localhost:${OMNISEARCH_DEFAULT_PORT}`;
-  }
-}
-
-function normalizeOmnisearchHit(raw: RawOmnisearchHit): OmnisearchHit {
-  return {
-    basename: raw.basename,
-    excerpt: cleanExcerpt(raw.excerpt),
-    filename: raw.path,
-    foundWords: raw.foundWords,
-    matches: raw.matches,
-    score: raw.score,
-  };
-}
-
-/**
- * Normalize Omnisearch's excerpt HTML: `<br>` → `\n`, decode the entities
- * the upstream actually emits (`&amp;`, `&lt;`, `&gt;`, `&quot;`, `&#039;`,
- * `&apos;`, plus numeric `&#NNN;` / `&#xNN;`). `<mark>` tags are preserved —
- * they highlight the match span and are interpretable as emphasis.
- */
-function cleanExcerpt(excerpt: string): string {
-  return excerpt
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, n) => safeCodePoint(parseInt(n, 16)))
-    .replace(/&#(\d+);/g, (_, n) => safeCodePoint(Number(n)))
-    .replace(/&apos;/g, "'")
-    .replace(/&quot;/g, '"')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&');
-}
-
-function safeCodePoint(cp: number): string {
-  if (!Number.isInteger(cp) || cp < 0 || cp > 0x10ffff) return '';
-  return String.fromCodePoint(cp);
-}
-
-function parseJsonObject(text: string): UpstreamErrorBody | undefined {
-  if (!text) return;
-  try {
-    const v = JSON.parse(text);
-    return v && typeof v === 'object' ? (v as UpstreamErrorBody) : undefined;
-  } catch {
-    return;
-  }
-}
-
-let _service: ObsidianService | undefined;
 
 export function initObsidianService(
   config: ServerConfig = getServerConfig(),
-  fetchImpl?: ObsidianFetch,
+  fetchImpl?: ObsidianFetch
 ): void {
-  _service = new ObsidianService(config, fetchImpl);
+  instance = new ObsidianService(config, fetchImpl);
 }
 
 /** Test-only: directly install an instance (e.g., one backed by a stub fetch). */
 export function setObsidianService(service: ObsidianService | undefined): void {
-  _service = service;
-}
-
-export function getObsidianService(): ObsidianService {
-  if (!_service) {
-    throw new Error('ObsidianService not initialized — call initObsidianService() in setup().');
-  }
-  return _service;
+  instance = service;
 }

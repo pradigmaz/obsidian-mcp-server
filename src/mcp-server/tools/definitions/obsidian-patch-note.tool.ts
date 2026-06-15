@@ -14,6 +14,7 @@ import {
   SectionSchema,
   TargetSchema,
 } from './_shared/schemas.js';
+import { OkfFrontmatterSchema } from './okf-types.js';
 
 export const obsidianPatchNote = tool('obsidian_patch_note', {
   description:
@@ -21,6 +22,7 @@ export const obsidianPatchNote = tool('obsidian_patch_note', {
   annotations: { destructiveHint: true },
   input: z.object({
     target: TargetSchema.describe('Where the note lives.'),
+  }).merge(OkfFrontmatterSchema).extend({
     section: SectionSchema.describe('Which heading/block/frontmatter field to edit.'),
     operation: z
       .enum(['append', 'prepend', 'replace'])

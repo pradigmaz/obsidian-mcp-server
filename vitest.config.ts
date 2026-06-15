@@ -15,11 +15,11 @@ export default mergeConfig(
   coreConfig,
   defineConfig({
     resolve: { alias },
-    test: {
+    test: { setupFiles: ['./tests/setup.ts'],
       projects: [
         {
           extends: true,
-          test: {
+          test: { setupFiles: ['./tests/setup.ts'],
             name: 'unit',
             include: ['src/**/*.test.ts', 'tests/**/*.test.ts'],
             exclude: ['tests/smoke/**', 'tests/integration/**', 'tests/fuzz/**'],
@@ -30,14 +30,14 @@ export default mergeConfig(
         //
         // {
         //   extends: true,
-        //   test: {
+        //   test: { setupFiles: ['./tests/setup.ts'],
         //     name: 'smoke',
         //     include: ['tests/smoke/**/*.test.ts'],
         //   },
         // },
         // {
         //   extends: true,
-        //   test: {
+        //   test: { setupFiles: ['./tests/setup.ts'],
         //     name: 'fuzz',
         //     include: ['tests/fuzz/**/*.test.ts'],
         //     testTimeout: 15_000,
@@ -45,7 +45,7 @@ export default mergeConfig(
         // },
         // {
         //   extends: true,
-        //   test: {
+        //   test: { setupFiles: ['./tests/setup.ts'],
         //     name: 'integration',
         //     include: ['tests/integration/**/*.test.ts'],
         //     maxWorkers: 1,
@@ -56,3 +56,4 @@ export default mergeConfig(
     },
   }),
 );
+
