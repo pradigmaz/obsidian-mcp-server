@@ -186,7 +186,11 @@ export function createKnowledgeProxyTool<TInput extends KnowledgeInputSchema, TR
   path: string | ((input: z.infer<TInput>) => string);
   method?: 'GET' | 'POST' | ((input: z.infer<TInput>) => 'GET' | 'POST');
   authWrite?: boolean;
-  gatekeeper?: { requireHealth: boolean };
+  gatekeeper?: {
+    requireHealth: boolean;
+    skipStrict?: (input: z.infer<TInput>) => boolean;
+  };
+  headers?: (input: z.infer<TInput>) => Record<string, string>;
   format: (params: { result: TResult; input?: z.infer<TInput> }) => ContentBlock[];
 }) {
   return tool(opts.name, {
@@ -203,12 +207,18 @@ export function createKnowledgeProxyTool<TInput extends KnowledgeInputSchema, TR
       const input = rawInput as z.infer<TInput>;
       const p = typeof opts.path === 'function' ? opts.path(input) : opts.path;
       const m = typeof opts.method === 'function' ? opts.method(input) : (opts.method ?? 'POST');
+      const requireStrictGatekeeper =
+        opts.gatekeeper?.requireHealth && !opts.gatekeeper.skipStrict?.(input);
+      const headers = {
+        ...(requireStrictGatekeeper ? { 'X-Gatekeeper-Strict': 'true' } : {}),
+        ...(opts.headers ? opts.headers(input) : {}),
+      };
 
       const result = await requestKnowledgeJson<TResult>({
         ctx,
         path: p,
         method: m,
-        ...(opts.gatekeeper?.requireHealth ? { headers: { 'X-Gatekeeper-Strict': 'true' } } : {}),
+        ...(Object.keys(headers).length > 0 ? { headers } : {}),
         body: m === 'POST' ? input : undefined,
       });
       return { result };

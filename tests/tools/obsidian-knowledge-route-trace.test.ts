@@ -23,6 +23,54 @@ describe('obsidian_knowledge_route_trace', () => {
         target: 'B.md',
         path: ['A.md', 'B.md'],
         distance: 1,
+        seed: { seed: 'A.md', seed_kind: 'note' },
+        best_route: {
+          segments: [
+            { kind: 'link', path: 'A.md', language: 'md', evidence: 'Route seed.', relation_kind: 'reference', source_kind: 'vault', score: 1 },
+            {
+              kind: 'link',
+              path: 'B.md',
+              language: 'md',
+              evidence: 'Linked from A.md.',
+              relation_kind: 'reference',
+              source_kind: 'vault',
+              score: 1,
+              from: 'A.md',
+              to: 'B.md',
+              direction: 'forward',
+              relationKind: 'reference',
+              confidence: 0.92,
+              reasonCodes: ['direct_link_route'],
+            },
+          ],
+          total_hops: 1,
+          total_weight: 1,
+          collapsed_hops: 0,
+          confidence: 1,
+        },
+        alternate_routes: [],
+        unresolved_gaps: [],
+        capability_status: 'ok',
+        unsupported_sources: [],
+        confidence: 1,
+        evidencePack: {
+          items: [{
+            kind: 'link',
+            path: 'A.md',
+            value: 'route seed',
+            reasonCode: 'route_seed',
+            weight: 0.8,
+          }],
+          confidence: 0.8,
+          gaps: [],
+          provenance: {
+            basis: 'graph_derived',
+            derivation: 'route_trace',
+            freshness: 'index_snapshot',
+            strength: 'strong',
+            reasons: ['route_seed'],
+          },
+        },
       }),
     });
 
@@ -50,5 +98,9 @@ describe('obsidian_knowledge_route_trace', () => {
     expect(formatted).toHaveLength(1);
     expect(formatted[0].text).toContain('A.md ➔ B.md');
     expect(formatted[0].text).toContain('Distance: 1');
+    expect(formatted[0].text).toContain('Edge: A.md -> B.md');
+    expect(formatted[0].text).toContain('Reasons: direct_link_route');
+    expect(formatted[0].text).toContain('### Evidence');
+    expect(formatted[0].text).toContain('route_seed');
   });
 });

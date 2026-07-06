@@ -8,4 +8,19 @@ describe('tool groups', () => {
       false,
     );
   });
+
+  it('classifies P0 Knowledge write-safety tools by mutability', () => {
+    expect(readToolDefinitions.some((tool) => tool.name === 'obsidian_knowledge_write_preflight')).toBe(true);
+    expect(readToolDefinitions.some((tool) => tool.name === 'obsidian_knowledge_preview_patch')).toBe(true);
+    expect(writeToolDefinitions.some((tool) => tool.name === 'obsidian_knowledge_apply_patch')).toBe(true);
+
+    expect(writeToolDefinitions.some((tool) => tool.name === 'obsidian_knowledge_write_preflight')).toBe(false);
+    expect(writeToolDefinitions.some((tool) => tool.name === 'obsidian_knowledge_preview_patch')).toBe(false);
+    expect(readToolDefinitions.some((tool) => tool.name === 'obsidian_knowledge_apply_patch')).toBe(false);
+  });
+
+  it('registers degradation report as read-only', () => {
+    expect(readToolDefinitions.some((tool) => tool.name === 'obsidian_knowledge_degradation_report')).toBe(true);
+    expect(writeToolDefinitions.some((tool) => tool.name === 'obsidian_knowledge_degradation_report')).toBe(false);
+  });
 });

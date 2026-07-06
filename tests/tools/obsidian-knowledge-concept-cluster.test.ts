@@ -20,6 +20,29 @@ describe('obsidian_knowledge_concept_cluster', () => {
       status: 200,
       json: async () => ({
         concept: 'AI',
+        seed: { seed: 'AI', seed_kind: 'basename' },
+        variants: [],
+        cluster_summary: {
+          variant_count: 2,
+          languages: ['md'],
+          route_kinds: ['direct_link'],
+          top_relation_kinds: ['direct_link'],
+          confidence: 0.8,
+        },
+        gaps: [],
+        capability_status: 'ok',
+        unsupported_sources: [],
+        confidence: 0.8,
+        member_evidence: [{
+          path: 'AI.md',
+          evidence: [{
+            kind: 'direct_link',
+            path: 'AI.md',
+            value: 'cluster seed',
+            confidence: 1,
+            reasonCodes: ['cluster_seed'],
+          }],
+        }],
         cluster: ['AI.md', 'Agents.md'],
         relatedConcepts: ['LLM', 'Prompting'],
       }),
@@ -47,5 +70,8 @@ describe('obsidian_knowledge_concept_cluster', () => {
     expect(formatted[0].text).toContain('Concept Cluster: AI');
     expect(formatted[0].text).toContain('Cluster Notes (2)');
     expect(formatted[0].text).toContain('Related Concepts (2)');
+    expect(formatted[0].text).toContain('Top relation kinds: direct_link');
+    expect(formatted[0].text).toContain('### Member Evidence');
+    expect(formatted[0].text).toContain('direct_link: cluster seed');
   });
 });

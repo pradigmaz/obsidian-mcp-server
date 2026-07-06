@@ -29,6 +29,16 @@ describe('obsidian_knowledge_smart_search', () => {
           {
             path: 'test.md',
             score: 2.5,
+            bestSection: {
+              path: 'test.md',
+              heading: 'Result Section',
+              headingLevel: 2,
+              blockId: null,
+              startLine: 10,
+              endLine: 18,
+              excerpt: 'some excerpt',
+              reasonCodes: ['body_match'],
+            },
             scoreParts: {
               omnisearch: 1,
               backlinks: 0.5,
@@ -37,6 +47,25 @@ describe('obsidian_knowledge_smart_search', () => {
               recency: 0.1,
               apiSurface: 0.6,
               generatedPenalty: 1,
+            },
+            evidencePack: {
+              items: [{
+                kind: 'section',
+                path: 'test.md',
+                line: 10,
+                value: 'Result Section',
+                reasonCode: 'heading_match',
+                weight: 0.95,
+              }],
+              confidence: 0.9,
+              gaps: [],
+              provenance: {
+                basis: 'mixed',
+                derivation: 'evidence_pack',
+                freshness: 'index_snapshot',
+                strength: 'strong',
+                reasons: ['heading_match'],
+              },
             },
             why: ['link boost'],
             excerpt: 'some excerpt',
@@ -79,6 +108,9 @@ describe('obsidian_knowledge_smart_search', () => {
           intent: 'research',
           filters: { tags: ['#project'] },
         }),
+        headers: expect.objectContaining({
+          'X-Gatekeeper-Strict': 'true',
+        }),
       }),
     );
 
@@ -89,6 +121,49 @@ describe('obsidian_knowledge_smart_search', () => {
     expect(formatted[0].text).toContain('test query');
     expect(formatted[0].text).toContain('used text fallback');
     expect(formatted[0].text).toContain('Why: link boost');
+    expect(formatted[0].text).toContain('Evidence: heading_match=Result Section');
     expect(formatted[0].text).toContain('test.md (score: 2.50)');
+    expect(formatted[0].text).toContain('Section: L10-L18 Result Section');
+  });
+
+  it('can explicitly allow degraded search without strict Gatekeeper', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        status: 'degraded',
+        query: 'test query',
+        results: [],
+      }),
+    });
+
+    const mockCtx = {
+      fail: vi.fn(),
+      recoveryFor: vi.fn(),
+    };
+
+    await obsidianKnowledgeSmartSearch.handler(
+      {
+        query: 'test query',
+        limit: 2,
+        allow_degraded: true,
+      },
+      mockCtx as any,
+    );
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:27125/api/search',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          query: 'test query',
+          limit: 2,
+          allow_degraded: true,
+        }),
+        headers: expect.not.objectContaining({
+          'X-Gatekeeper-Strict': 'true',
+        }),
+      }),
+    );
   });
 });

@@ -1,6 +1,26 @@
 import { z } from '@cyanheads/mcp-ts-core';
 import { createKnowledgeProxyTool } from './obsidian-knowledge-client.js';
 
+const ClusterMemberEvidenceSchema = z
+  .object({
+    kind: z
+      .enum([
+        'direct_link',
+        'shared_tag',
+        'shared_backlink_neighbor',
+        'folder_convention',
+        'source_class_relation',
+      ])
+      .describe('Kind of cluster member evidence.'),
+    path: z.string().describe('Cluster member path.'),
+    value: z.string().describe('Compact evidence value.'),
+    confidence: z.number().describe('Evidence confidence.'),
+    reasonCodes: z
+      .array(z.string().describe('Evidence reason code.'))
+      .describe('Evidence reason codes.'),
+  })
+  .describe('Evidence explaining why a note belongs to a cluster.');
+
 const ConceptClusterResultSchema = z
   .object({
     seed: z
@@ -21,6 +41,11 @@ const ConceptClusterResultSchema = z
         route_kinds: z
           .array(z.string().describe('Route or relation kind represented in the cluster.'))
           .describe('Route kinds represented in the cluster.'),
+        top_relation_kinds: z
+          .array(z.string().describe('Top relation kind.'))
+          .optional()
+          .describe('Top relation kinds in this cluster.'),
+        confidence: z.number().optional().describe('Cluster summary confidence.'),
       })
       .passthrough()
       .describe('Summary statistics for the cluster.'),
@@ -30,6 +55,19 @@ const ConceptClusterResultSchema = z
       .array(z.string().describe('Unsupported source encountered while clustering.'))
       .describe('Sources that concept clustering could not use.'),
     confidence: z.number().describe('Overall concept-cluster confidence score.'),
+    member_evidence: z
+      .array(
+        z
+          .object({
+            path: z.string().describe('Cluster member path.'),
+            evidence: z
+              .array(ClusterMemberEvidenceSchema)
+              .describe('Evidence for this cluster member.'),
+          })
+          .describe('Cluster member evidence bundle.'),
+      )
+      .optional()
+      .describe('Evidence for cluster membership.'),
     // Legacy fields for backward compat
     concept: z.string().optional().describe('Legacy concept identifier.'),
     cluster: z
@@ -72,7 +110,8 @@ export const obsidianKnowledgeConceptCluster = createKnowledgeProxyTool({
         return value.id;
       return JSON.stringify(value);
     };
-    const cluster = result.variants?.map((variant) => asText(variant)) || result.cluster || [];
+    const cluster =
+      result.variants?.length ? result.variants.map((variant) => asText(variant)) : result.cluster || [];
     const related = result.relatedConcepts || [];
     const lines = [
       `**Concept Cluster: ${concept}**`,
@@ -82,6 +121,9 @@ export const obsidianKnowledgeConceptCluster = createKnowledgeProxyTool({
       `- Variant count: ${result.cluster_summary?.variant_count ?? cluster.length}`,
       `- Languages: ${result.cluster_summary?.languages?.join(', ') || 'none'}`,
       `- Route kinds: ${result.cluster_summary?.route_kinds?.join(', ') || 'none'}`,
+      ...(result.cluster_summary?.top_relation_kinds?.length
+        ? [`- Top relation kinds: ${result.cluster_summary.top_relation_kinds.join(', ')}`]
+        : []),
       '',
       `Cluster Notes (${cluster.length}):`,
       ...cluster.map((note) => `- ${note}`),
@@ -91,6 +133,16 @@ export const obsidianKnowledgeConceptCluster = createKnowledgeProxyTool({
     ];
     if (result.variants?.length)
       lines.push('', '### Variants', ...result.variants.map((variant) => `- ${asText(variant)}`));
+    if (result.member_evidence?.length) {
+      lines.push(
+        '',
+        '### Member Evidence',
+        ...result.member_evidence.flatMap((member) => [
+          `- ${member.path}`,
+          ...member.evidence.slice(0, 3).map((evidence) => `  - ${evidence.kind}: ${evidence.value}`),
+        ]),
+      );
+    }
     if (result.gaps?.length) lines.push('', '### Gaps', ...result.gaps.map((gap) => `- ${gap}`));
     if (result.unsupported_sources?.length)
       lines.push(

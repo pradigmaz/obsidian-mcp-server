@@ -1,12 +1,43 @@
 import { z } from '@cyanheads/mcp-ts-core';
 import { createKnowledgeProxyTool } from './obsidian-knowledge-client.js';
 
+const EvidenceItemSchema = z
+  .object({
+    kind: z
+      .enum(['section', 'frontmatter', 'tag', 'link', 'backlink', 'freshness', 'source_class'])
+      .describe('Kind of evidence item.'),
+    path: z.string().describe('Vault-relative path this evidence belongs to.'),
+    line: z.number().int().nonnegative().optional().describe('Optional zero-based line number.'),
+    value: z.string().describe('Compact evidence value.'),
+    reasonCode: z.string().describe('Stable reason code for this evidence item.'),
+    weight: z.number().describe('Evidence item weight.'),
+  })
+  .describe('Compact evidence item supporting a bootstrap note.');
+
+const EvidencePackSchema = z
+  .object({
+    items: z.array(EvidenceItemSchema).describe('Capped evidence items.'),
+    confidence: z.number().min(0).max(1).describe('Evidence confidence score.'),
+    gaps: z.array(z.string().describe('Known evidence gap.')).describe('Known evidence gaps.'),
+    provenance: z
+      .object({
+        basis: z.string().describe('Evidence basis.'),
+        derivation: z.string().describe('How the evidence was derived.'),
+        freshness: z.string().describe('Evidence freshness.'),
+        strength: z.string().describe('Evidence strength.'),
+        reasons: z.array(z.string()).optional().describe('Evidence reason codes.'),
+      })
+      .describe('Evidence provenance.'),
+  })
+  .describe('Capped evidence pack explaining a bootstrap note.');
+
 const SearchHitSchema = z
   .object({
     path: z.string().describe('Vault-relative note path for the search hit.'),
     title: z.string().describe('Display title for the search hit.'),
     score: z.number().describe('Search relevance score for the hit.'),
     excerpt: z.string().optional().describe('Optional excerpt from the matching note.'),
+    evidencePack: EvidencePackSchema.optional().describe('Compact evidence supporting this hit.'),
   })
   .describe('Relevant note search hit.');
 
@@ -36,6 +67,19 @@ const AgentBootstrapResponseSchema = z
               .describe('Recommended workspace entry point.'),
           )
           .describe('Recommended notes to inspect first.'),
+        canonicalEntryPoints: z
+          .array(
+            z
+              .object({
+                path: z.string().describe('Canonical entry point note path.'),
+                score: z.number().describe('Entry point score.'),
+                confidence: z.number().describe('Source classification confidence.'),
+                reasons: z.array(z.string()).describe('Source classification reason codes.'),
+              })
+              .describe('Canonical workspace entry point.'),
+          )
+          .optional()
+          .describe('Canonical source-of-truth entry points.'),
       })
       .partial()
       .describe('Compact workspace brief for startup context.'),
@@ -170,9 +214,14 @@ export const obsidianKnowledgeAgentBootstrap = createKnowledgeProxyTool({
       })
       .optional()
       .describe('Optional search filters.'),
+    privacy_mode: z
+      .enum(['off', 'mask', 'hash'])
+      .optional()
+      .describe('Privacy redaction mode forwarded as X-Knowledge-Privacy. Defaults to mask.'),
   }),
   output: AgentBootstrapResponseSchema,
   path: '/api/bootstrap',
+  headers: (input) => input.privacy_mode ? { 'X-Knowledge-Privacy': input.privacy_mode } : {},
 
   format: ({ result, input }) => {
     const asText = (value: unknown) => (typeof value === 'string' ? value : JSON.stringify(value));
@@ -219,6 +268,14 @@ export const obsidianKnowledgeAgentBootstrap = createKnowledgeProxyTool({
       lines.push(`- **${note.path}** (score: ${note.score.toFixed(2)}) - ${note.title}`);
       if (note.excerpt) {
         lines.push(`  *Excerpt*: ${note.excerpt}`);
+      }
+      if (note.evidencePack?.items?.length) {
+        lines.push(
+          `  *Evidence*: ${note.evidencePack.items
+            .slice(0, 3)
+            .map((item) => `${item.reasonCode}=${item.value}`)
+            .join('; ')}`,
+        );
       }
     }
     lines.push('');

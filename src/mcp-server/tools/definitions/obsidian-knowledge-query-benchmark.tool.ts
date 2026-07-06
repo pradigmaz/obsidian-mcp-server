@@ -8,6 +8,10 @@ const BenchmarkCaseSchema = z
       .array(z.string().describe('Vault-relative note path expected in the Top-K results.'))
       .describe('Expected vault-relative note paths for this query.'),
     minTopK: z.number().describe('Minimum Top-K cutoff to evaluate for this case.'),
+    intent: z
+      .enum(['lookup', 'research', 'decision', 'cleanup', 'bootstrap'])
+      .optional()
+      .describe('Search intent to apply while running this benchmark case.'),
     notes: z.string().optional().describe('Optional notes explaining the benchmark case.'),
   })
   .describe('Single query benchmark case.');
@@ -16,6 +20,7 @@ const BenchmarkCaseResultSchema = z
   .object({
     query: z.string().describe('Benchmark query that was executed.'),
     pass: z.boolean().describe('Whether this benchmark case passed its expectations.'),
+    error: z.string().optional().describe('Search execution error for this case, when present.'),
     missingPaths: z
       .array(z.string().describe('Expected path missing from the Top-K result set.'))
       .describe('Expected paths that were not found in the Top-K results.'),

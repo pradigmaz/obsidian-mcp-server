@@ -12,6 +12,19 @@ const SourceClassSchema = z
   ])
   .describe('Knowledge source classification for a note or context chunk.');
 
+const EvidenceItemSchema = z
+  .object({
+    kind: z
+      .enum(['section', 'frontmatter', 'tag', 'link', 'backlink', 'freshness', 'source_class'])
+      .describe('Kind of evidence item.'),
+    path: z.string().describe('Vault-relative path this evidence belongs to.'),
+    line: z.number().int().nonnegative().optional().describe('Optional zero-based line number.'),
+    value: z.string().describe('Compact evidence value.'),
+    reasonCode: z.string().describe('Stable reason code for this evidence item.'),
+    weight: z.number().describe('Evidence item weight.'),
+  })
+  .describe('Compact evidence item supporting a search decision.');
+
 const CanonicalProvenanceSchema = z
   .object({
     basis: z
@@ -30,6 +43,15 @@ const CanonicalProvenanceSchema = z
       .describe('Reasons supporting this provenance assessment.'),
   })
   .describe('Canonical provenance for a Knowledge search result or report.');
+
+const EvidencePackSchema = z
+  .object({
+    items: z.array(EvidenceItemSchema).describe('Capped evidence items.'),
+    confidence: z.number().min(0).max(1).describe('Evidence confidence score.'),
+    gaps: z.array(z.string().describe('Known evidence gap.')).describe('Known evidence gaps.'),
+    provenance: CanonicalProvenanceSchema.describe('Evidence pack provenance.'),
+  })
+  .describe('Capped evidence pack explaining a hit or selected context.');
 
 const SmartSearchExplainSchema = z
   .object({
@@ -58,12 +80,42 @@ const SmartSearchScorePartsSchema = z
     tagFolder: z.number().describe('Tag and folder score contribution.'),
     recency: z.number().describe('Recency score contribution.'),
     apiSurface: z.number().describe('API surface score contribution.'),
+    sourceOfTruth: z.number().optional().describe('Source-of-truth score contribution.'),
     generatedPenalty: z.number().describe('Penalty applied to generated or derived content.'),
   })
   .describe('Detailed score parts for one search hit.');
 
+const SmartSearchSectionReasonSchema = z
+  .enum([
+    'heading_match',
+    'block_anchor',
+    'frontmatter_match',
+    'body_match',
+    'omnisearch_excerpt',
+    'fallback_text',
+  ])
+  .describe('Reason a note section was selected for a search hit.');
+
+const SmartSearchNoteSectionSchema = z
+  .object({
+    path: z.string().describe('Vault-relative note path for this section.'),
+    heading: z.string().nullable().describe('Markdown heading for this section, if present.'),
+    headingLevel: z.number().int().min(1).max(6).nullable().describe('Markdown heading level.'),
+    blockId: z.string().nullable().describe('Obsidian block id anchor without the leading caret.'),
+    startLine: z.number().int().nonnegative().describe('Zero-based section start line.'),
+    endLine: z.number().int().nonnegative().describe('Zero-based section end line.'),
+    excerpt: z.string().describe('Compact excerpt from this section.'),
+    reasonCodes: z
+      .array(SmartSearchSectionReasonSchema)
+      .describe('Stable reason codes explaining why this section was selected.'),
+  })
+  .describe('Precise note section selected for a Knowledge search hit.');
+
 const SmartSearchHitSchema = z
   .object({
+    bestSection: SmartSearchNoteSectionSchema.optional().describe(
+      'Best exact note section for reading or patching this hit.',
+    ),
     path: z.string().describe('Vault-relative note path for the hit.'),
     title: z.string().optional().describe('Display title for the hit.'),
     score: z.number().describe('Final ranked score for the hit.'),
@@ -85,6 +137,11 @@ const SmartSearchHitSchema = z
       .describe('Human-readable ranking reasons.'),
     explain: SmartSearchExplainSchema.optional().describe('Detailed ranking explanation.'),
     provenance: CanonicalProvenanceSchema.optional().describe('Canonical hit provenance.'),
+    evidencePack: EvidencePackSchema.optional().describe('Compact evidence supporting this hit.'),
+    sections: z
+      .array(SmartSearchNoteSectionSchema)
+      .optional()
+      .describe('Top exact note sections for reading or patching this hit.'),
   })
   .describe('Single Knowledge smart search hit.');
 
@@ -103,6 +160,7 @@ const SmartSearchSelectedContextItemSchema = z
       .describe('Reasons this context item was selected.'),
     explain: SmartSearchExplainSchema.describe('Ranking explanation for this context item.'),
     provenance: CanonicalProvenanceSchema.describe('Canonical provenance for this context item.'),
+    evidencePack: EvidencePackSchema.optional().describe('Compact evidence for this context item.'),
   })
   .describe('Context item selected for the query report.');
 
@@ -406,10 +464,19 @@ export const obsidianKnowledgeSmartSearch = createKnowledgeProxyTool({
       })
       .optional()
       .describe('Optional metadata filters.'),
+    privacy_mode: z
+      .enum(['off', 'mask', 'hash'])
+      .optional()
+      .describe('Privacy redaction mode forwarded as X-Knowledge-Privacy. Defaults to mask.'),
+    allow_degraded: z
+      .boolean()
+      .optional()
+      .describe('When true, do not force strict Gatekeeper and allow degraded search output.'),
   }),
   output: SmartSearchResultSchema,
   path: '/api/search',
-  gatekeeper: { requireHealth: true },
+  gatekeeper: { requireHealth: true, skipStrict: (input) => input.allow_degraded === true },
+  headers: (input) => input.privacy_mode ? { 'X-Knowledge-Privacy': input.privacy_mode } : {},
 
   format: ({ result }) => {
     const lines = [`**Knowledge Smart Search: "${result.query}"**`];
@@ -424,6 +491,18 @@ export const obsidianKnowledgeSmartSearch = createKnowledgeProxyTool({
     lines.push(`Found: ${result.results.length}`);
     for (const r of result.results) {
       lines.push(`- ${r.path} (score: ${r.score.toFixed(2)})`);
+      if (r.bestSection) {
+        const heading = r.bestSection.heading ? ` ${r.bestSection.heading}` : '';
+        lines.push(`  Section: L${r.bestSection.startLine}-L${r.bestSection.endLine}${heading}`);
+      }
+      if (r.evidencePack?.items?.length) {
+        lines.push(
+          `  Evidence: ${r.evidencePack.items
+            .slice(0, 3)
+            .map((item) => `${item.reasonCode}=${item.value}`)
+            .join('; ')}`,
+        );
+      }
       if (r.why && r.why.length > 0) lines.push(`  Why: ${r.why.join(', ')}`);
       if (r.excerpt) lines.push(`  ${r.excerpt.slice(0, 240)}`);
     }

@@ -27,15 +27,19 @@ import { obsidianWriteNote } from './obsidian-write-note.tool.js';
 export { buildSearchNotesTool } from './obsidian-search-notes.tool.js';
 
 import { obsidianKnowledgeAgentBootstrap } from './obsidian-knowledge-agent-bootstrap.tool.js';
+import { obsidianKnowledgeApplyPatch } from './obsidian-knowledge-apply-patch.tool.js';
 import { obsidianKnowledgeConceptCluster } from './obsidian-knowledge-concept-cluster.tool.js';
+import { obsidianKnowledgeDegradationReport } from './obsidian-knowledge-degradation-report.tool.js';
 import { obsidianKnowledgeHealthReport } from './obsidian-knowledge-health-report.tool.js';
 import { obsidianKnowledgeInvestigateConstraint } from './obsidian-knowledge-investigate-constraint.tool.js';
 import { obsidianKnowledgeJanitorScan } from './obsidian-knowledge-janitor-scan.tool.js';
+import { obsidianKnowledgePreviewPatch } from './obsidian-knowledge-preview-patch.tool.js';
 import { obsidianKnowledgeQueryBenchmark } from './obsidian-knowledge-query-benchmark.tool.js';
 import { obsidianKnowledgeRouteTrace } from './obsidian-knowledge-route-trace.tool.js';
 import { obsidianKnowledgeSignalMemoryTool } from './obsidian-knowledge-signal-memory.tool.js';
 import { obsidianKnowledgeSmartSearch } from './obsidian-knowledge-smart-search.tool.js';
 import { obsidianKnowledgeStatus } from './obsidian-knowledge-status.tool.js';
+import { obsidianKnowledgeWritePreflight } from './obsidian-knowledge-write-preflight.tool.js';
 import { obsidianKnowledgeWorkspaceBrief } from './obsidian-knowledge-workspace-brief.tool.js';
 
 /**
@@ -54,12 +58,15 @@ export const readToolDefinitions = [
   obsidianKnowledgeSmartSearch,
   obsidianKnowledgeWorkspaceBrief,
   obsidianKnowledgeAgentBootstrap,
+  obsidianKnowledgeDegradationReport,
   obsidianKnowledgeSignalMemoryTool,
   obsidianKnowledgeQueryBenchmark,
   obsidianKnowledgeRouteTrace,
   obsidianKnowledgeConceptCluster,
   obsidianKnowledgeJanitorScan,
   obsidianKnowledgeInvestigateConstraint,
+  obsidianKnowledgeWritePreflight,
+  obsidianKnowledgePreviewPatch,
   obsidianManageBackups,
 ];
 
@@ -74,6 +81,7 @@ export const writeToolDefinitions = [
   obsidianManageFrontmatter,
   obsidianManageTags,
   obsidianDeleteNote,
+  obsidianKnowledgeApplyPatch,
 ];
 
 /** Command-palette tools — opt-in via `OBSIDIAN_ENABLE_COMMANDS=true`; suppressed by `OBSIDIAN_READ_ONLY=true`. */
