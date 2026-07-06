@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { obsidianKnowledgeJanitorScan } from '../../src/mcp-server/tools/definitions/obsidian-knowledge-janitor-scan.tool.js';
 
 const mockFetch = vi.fn();
@@ -20,21 +20,24 @@ describe('obsidian_knowledge_janitor_scan', () => {
       status: 200,
       json: async () => ({
         unstructuredNotes: ['bad1.md', 'bad2.md'],
-        scannedCount: 10
-      })
+        scannedCount: 10,
+      }),
     });
 
     const mockCtx = {
       fail: vi.fn(),
-      recoveryFor: vi.fn()
+      recoveryFor: vi.fn(),
     };
 
     const res = await obsidianKnowledgeJanitorScan.handler({ folder: 'test' }, mockCtx as any);
 
-    expect(mockFetch).toHaveBeenCalledWith('http://127.0.0.1:27125/api/janitor-scan', expect.objectContaining({
-      method: 'POST',
-      body: JSON.stringify({ folder: 'test' })
-    }));
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:27125/api/janitor-scan',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ folder: 'test' }),
+      }),
+    );
 
     expect(res.result.scannedCount).toBe(10);
     expect(res.result.unstructuredNotes).toHaveLength(2);

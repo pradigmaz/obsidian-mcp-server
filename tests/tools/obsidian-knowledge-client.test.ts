@@ -1,10 +1,14 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { requestKnowledgeJson } from '../../src/mcp-server/tools/definitions/obsidian-knowledge-client.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { z } from '@cyanheads/mcp-ts-core';
+import {
+  createKnowledgeProxyTool,
+  requestKnowledgeJson,
+} from '../../src/mcp-server/tools/definitions/obsidian-knowledge-client.js';
 
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 const knowledgeHeaders = {
-  get: (key: string) => key === 'x-knowledge-plugin' ? '1' : '0.1.0',
+  get: (key: string) => (key === 'x-knowledge-plugin' ? '1' : '0.1.0'),
 };
 
 describe('requestKnowledgeJson', () => {
@@ -35,16 +39,22 @@ describe('requestKnowledgeJson', () => {
   it('handles fetch network errors with knowledge_unreachable', async () => {
     mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
-    await expect(requestKnowledgeJson({
-      path: '/test',
-      ctx: mockCtx,
-    })).rejects.toThrow('Knowledge Analytics endpoint is not reachable at http://127.0.0.1:27125');
+    await expect(
+      requestKnowledgeJson({
+        path: '/test',
+        ctx: mockCtx,
+      }),
+    ).rejects.toThrow('Knowledge Analytics endpoint is not reachable at http://127.0.0.1:27125');
 
     expect(mockCtx.fail).toHaveBeenCalledWith(
       'knowledge_unreachable',
       expect.any(String),
-      expect.objectContaining({ baseUrl: 'http://127.0.0.1:27125', path: '/test', recovery: 'recover_knowledge_unreachable' }),
-      expect.objectContaining({ cause: expect.any(Error) })
+      expect.objectContaining({
+        baseUrl: 'http://127.0.0.1:27125',
+        path: '/test',
+        recovery: 'recover_knowledge_unreachable',
+      }),
+      expect.objectContaining({ cause: expect.any(Error) }),
     );
   });
 
@@ -55,16 +65,22 @@ describe('requestKnowledgeJson', () => {
       json: () => Promise.reject(new Error('Invalid JSON')),
     });
 
-    await expect(requestKnowledgeJson({
-      path: '/test',
-      ctx: mockCtx,
-    })).rejects.toThrow('Knowledge Analytics endpoint returned non-JSON response with status 502.');
+    await expect(
+      requestKnowledgeJson({
+        path: '/test',
+        ctx: mockCtx,
+      }),
+    ).rejects.toThrow('Knowledge Analytics endpoint returned non-JSON response with status 502.');
 
     expect(mockCtx.fail).toHaveBeenCalledWith(
       'knowledge_bad_response',
       expect.any(String),
-      expect.objectContaining({ status: 502, path: '/test', recovery: 'recover_knowledge_bad_response' }),
-      expect.objectContaining({ cause: expect.any(Error) })
+      expect.objectContaining({
+        status: 502,
+        path: '/test',
+        recovery: 'recover_knowledge_bad_response',
+      }),
+      expect.objectContaining({ cause: expect.any(Error) }),
     );
   });
 
@@ -76,15 +92,22 @@ describe('requestKnowledgeJson', () => {
       json: () => Promise.resolve({ error: 'Bad request' }),
     });
 
-    await expect(requestKnowledgeJson({
-      path: '/test',
-      ctx: mockCtx,
-    })).rejects.toThrow('Knowledge Analytics endpoint returned status 400.');
+    await expect(
+      requestKnowledgeJson({
+        path: '/test',
+        ctx: mockCtx,
+      }),
+    ).rejects.toThrow('Knowledge Analytics endpoint returned status 400.');
 
     expect(mockCtx.fail).toHaveBeenCalledWith(
       'knowledge_bad_response',
       expect.any(String),
-      expect.objectContaining({ status: 400, path: '/test', payload: { error: 'Bad request' }, recovery: 'recover_knowledge_bad_response' })
+      expect.objectContaining({
+        status: 400,
+        path: '/test',
+        payload: { error: 'Bad request' },
+        recovery: 'recover_knowledge_bad_response',
+      }),
     );
   });
 
@@ -96,15 +119,21 @@ describe('requestKnowledgeJson', () => {
       json: () => Promise.resolve({ error: 'not found' }),
     });
 
-    await expect(requestKnowledgeJson({
-      path: '/api/status',
-      ctx: mockCtx,
-    })).rejects.toThrow('Stale or incorrect server detected');
+    await expect(
+      requestKnowledgeJson({
+        path: '/api/status',
+        ctx: mockCtx,
+      }),
+    ).rejects.toThrow('Stale or incorrect server detected');
 
     expect(mockCtx.fail).toHaveBeenCalledWith(
       'knowledge_bad_response',
       expect.stringContaining('non-Knowledge process'),
-      expect.objectContaining({ status: 404, path: '/api/status', recovery: 'recover_knowledge_bad_response' })
+      expect.objectContaining({
+        status: 404,
+        path: '/api/status',
+        recovery: 'recover_knowledge_bad_response',
+      }),
     );
   });
 
@@ -112,19 +141,21 @@ describe('requestKnowledgeJson', () => {
     mockFetch.mockResolvedValueOnce({
       status: 200,
       ok: true,
-      headers: { get: (key: string) => key === 'x-knowledge-plugin' ? '1' : '0.0.0' },
+      headers: { get: (key: string) => (key === 'x-knowledge-plugin' ? '1' : '0.0.0') },
       json: () => Promise.resolve({ status: 'ready' }),
     });
 
-    await expect(requestKnowledgeJson({
-      path: '/api/status',
-      ctx: mockCtx,
-    })).rejects.toThrow('Knowledge Analytics schema mismatch');
+    await expect(
+      requestKnowledgeJson({
+        path: '/api/status',
+        ctx: mockCtx,
+      }),
+    ).rejects.toThrow('Knowledge Analytics schema mismatch');
 
     expect(mockCtx.fail).toHaveBeenCalledWith(
       'knowledge_bad_response',
       expect.any(String),
-      expect.objectContaining({ expectedSchemaVersion: '0.1.0', schemaVersion: '0.0.0' })
+      expect.objectContaining({ expectedSchemaVersion: '0.1.0', schemaVersion: '0.0.0' }),
     );
   });
 
@@ -136,10 +167,12 @@ describe('requestKnowledgeJson', () => {
       json: () => Promise.resolve({ error: 'Health gate failed' }),
     });
 
-    await expect(requestKnowledgeJson({
-      path: '/test',
-      ctx: mockCtx,
-    })).rejects.toThrow('Vault fails OKF standards.');
+    await expect(
+      requestKnowledgeJson({
+        path: '/test',
+        ctx: mockCtx,
+      }),
+    ).rejects.toThrow('Vault fails OKF standards.');
 
     expect(mockCtx.fail).toHaveBeenCalledWith(
       'knowledge_gatekeeper_blocked',
@@ -149,7 +182,7 @@ describe('requestKnowledgeJson', () => {
         path: '/test',
         payload: { error: 'Health gate failed' },
         recovery: 'recover_knowledge_gatekeeper_blocked',
-      })
+      }),
     );
   });
 
@@ -167,9 +200,39 @@ describe('requestKnowledgeJson', () => {
     });
 
     expect(res).toStrictEqual({ data: 'success' });
-    expect(mockFetch).toHaveBeenCalledWith('http://127.0.0.1:27125/test', expect.objectContaining({
-      method: 'GET',
-      headers: { 'X-Schema-Version': '0.1.0' }
-    }));
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:27125/test',
+      expect.objectContaining({
+        method: 'GET',
+        headers: { 'X-Schema-Version': '0.1.0' },
+      }),
+    );
+  });
+});
+
+describe('createKnowledgeProxyTool formatting', () => {
+  it('redacts sensitive tokens from text output', () => {
+    const proxy = createKnowledgeProxyTool({
+      name: 'obsidian_knowledge_redaction_test',
+      description: 'Redaction test helper.',
+      input: z.object({}),
+      output: z.object({ secret: z.string() }),
+      path: '/test',
+      format: ({ result }) => [
+        {
+          type: 'text',
+          text: `password=${result.secret} token=AKIA1234567890ABCDEF`,
+        },
+      ],
+    });
+
+    const formatted = proxy.format({ result: { secret: 'super-secret' } });
+
+    expect(formatted[0]).toMatchObject({
+      type: 'text',
+      text: expect.stringContaining('***REDACTED***'),
+    });
+    expect(formatted[0].text).not.toContain('super-secret');
+    expect(formatted[0].text).not.toContain('AKIA1234567890ABCDEF');
   });
 });

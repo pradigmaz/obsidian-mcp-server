@@ -1,6 +1,6 @@
-import { computeFenceMask } from '@/services/obsidian/section-extractor.js';
-import { type Context } from '@cyanheads/mcp-ts-core';
+import type { Context } from '@cyanheads/mcp-ts-core';
 import { JsonRpcErrorCode, McpError, notFound } from '@cyanheads/mcp-ts-core/errors';
+import { computeFenceMask } from '@/services/obsidian/section-extractor.js';
 import type { NoteJson, SectionTarget } from '@/services/obsidian/types.js';
 
 export function stringifyValue(v: unknown): string {

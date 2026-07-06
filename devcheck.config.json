@@ -11,6 +11,19 @@
     "ignorePatterns": []
   },
   "outdated": {
-    "allowlist": []
+    "allowlist": [
+      "@biomejs/biome",
+      "@cyanheads/mcp-ts-core",
+      "@types/node",
+      "js-yaml",
+      "tsc-alias",
+      "undici",
+      "vitest"
+    ],
+    "reason": "Pinned for local readiness cleanup; dependency upgrades require a separate maintenance pass with changelog review."
+  },
+  "docsSync": {
+    "rootPair": "independent",
+    "reason": "AGENTS.md is the active fork-specific agent protocol; upstream generated protocol is preserved at .agents/docs/upstream-agent-protocol.md."
   }
 }

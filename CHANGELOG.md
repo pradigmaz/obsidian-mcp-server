@@ -4,84 +4,42 @@ All notable changes to this project. Each entry links to its full per-version fi
 
 ## [3.2.7](changelog/3.2.x/3.2.7.md) — 2026-06-11
 
-mcp-ts-core ^0.10.6: post-pack bundle cleaner, packaging linter checks 8-9 (bundle content + identity), skill sync
-
 ## [3.2.6](changelog/3.2.x/3.2.6.md) — 2026-06-11
-
-Explicit server title on createApp() so MCP clients display obsidian-mcp-server in initialize serverInfo
 
 ## [3.2.5](changelog/3.2.x/3.2.5.md) — 2026-06-11
 
-mcp-ts-core ^0.9.21 → ^0.10.5 (strict env-boolean parsing, server identity fields, .mcpbignore anchoring, OBSIDIAN_OMNISEARCH_URL in manifest/server.json, empty-string guards on URL fields)
-
 ## [3.2.4](changelog/3.2.x/3.2.4.md) — 2026-06-02
-
-mcp-ts-core ^0.9.16 → ^0.9.21 (per-request log context, retryable auto-population, query-string redaction, devcheck gates); plugin marketplace support (.claude-plugin, .codex-plugin); MCP config key renamed to obsidian-mcp-server
 
 ## [3.2.3](changelog/3.2.x/3.2.3.md) — 2026-05-29
 
-Enrichment block on search/list tools, mcp-ts-core ^0.9.6 → ^0.9.16, skill sync, format script safe-by-default
-
 ## [3.2.2](changelog/3.2.x/3.2.2.md) — 2026-05-23
 
-mcp-ts-core ^0.9.1 → ^0.9.6; format-parity fixes on search_notes and get_note; manifest.json + .mcpbignore scaffolded for MCPB bundle support; install badges added to README.
+## [3.2.1](changelog/3.2.x/3.2.1.md) — 2026-05-21
 
-## [3.2.1](changelog/3.2.x/3.2.1.md) — 2026-05-21 · ⚠️ Breaking
+## [3.2.0](changelog/3.2.x/3.2.0.md) — 2026-05-17
 
-Typed error contracts catch up to wire reality on `obsidian_get_note`, `obsidian_patch_note`, and `obsidian_append_to_note`; `obsidian_manage_tags` default `location` flips from `both` to `frontmatter`; `obsidian_search_notes` drops the opaque text-mode `score` field.
-
-## [3.2.0](changelog/3.2.x/3.2.0.md) — 2026-05-17 · ⚠️ Breaking
-
-`obsidian_search_notes` gains BM25-ranked Omnisearch mode (auto-detected) and MCP-spec cursor pagination across all branches; `obsidian_list_commands` gains a `nameRegex` filter; PATCH headers track markdown-patch 1.0 from Local REST API v4.0.0+.
-
-## [3.1.11](changelog/3.1.x/3.1.11.md) — 2026-05-16 · 🛡️ Security
-
-Path-traversal hardening on the URL boundary + Windows-style separator parity across `PathPolicy` and `envPathList`. `obsidian_list_tags` gains an optional `nameRegex` filter with ReDoS guards.
+## [3.1.11](changelog/3.1.x/3.1.11.md) — 2026-05-16
 
 ## [3.1.10](changelog/3.1.x/3.1.10.md) — 2026-05-16
 
-Server-level `instructions` on `initialize` surfaces deployment-specific orientation (path policy, read-only mode, command-palette toggle) to spec-compliant clients. Framework bump to `@cyanheads/mcp-ts-core ^0.9.1`.
-
 ## [3.1.9](changelog/3.1.x/3.1.9.md) — 2026-05-11
-
-Section extractor and outgoing-link parser respect fenced code blocks and inline code — markdown-about-markdown notes stop yielding false-positive headings, block refs, and links. Adds `ambiguous_path` to the typed-error contract.
 
 ## [3.1.8](changelog/3.1.x/3.1.8.md) — 2026-05-11
 
-POST/PATCH bypass `withRetry` — prevents double-apply when a successful upstream write loses its response. Adds a 13-test regression suite covering the retry policy across every method.
-
 ## [3.1.7](changelog/3.1.x/3.1.7.md) — 2026-05-10
-
-Every mutating tool now reports `previousSizeInBytes` + `currentSizeInBytes`; `obsidian_append_to_note` gains the `created` upsert flag. Resolves [#48](https://github.com/cyanheads/obsidian-mcp-server/issues/48).
 
 ## [3.1.6](changelog/3.1.x/3.1.6.md) — 2026-05-09
 
-Pick up `mcp_tool_scopes` claim + `MCP_AUTH_DISABLE_SCOPE_CHECKS` bypass from `@cyanheads/mcp-ts-core` 0.8.20 — resolves [#47](https://github.com/cyanheads/obsidian-mcp-server/issues/47) for OIDC providers that can't override `scope`.
-
 ## [3.1.5](changelog/3.1.x/3.1.5.md) — 2026-05-06
-
-Bump @cyanheads/mcp-ts-core ^0.8.15 → ^0.8.18 and document the auth requirement for HTTP deployments beyond loopback.
 
 ## [3.1.4](changelog/3.1.x/3.1.4.md) — 2026-05-05
 
-Error contracts catch up to wire reality — obsidian://vault, obsidian_append_to_note, obsidian_write_note declare failure reasons (path_forbidden, note_missing, no_active_file, periodic_*, section_target_missing) the service already throws.
-
 ## [3.1.3](changelog/3.1.x/3.1.3.md) — 2026-05-04
-
-obsidian_get_note grows an opt-in includeLinks flag that surfaces the note's outgoing wikilinks and markdown links; tool descriptions, schema defaults, and recovery hints tightened across the surface.
 
 ## [3.1.2](changelog/3.1.x/3.1.2.md) — 2026-05-03
 
-Folder-scoped read/write permissions and a global read-only kill switch — three opt-in env vars (OBSIDIAN_READ_PATHS, OBSIDIAN_WRITE_PATHS, OBSIDIAN_READ_ONLY) gate every path-taking tool and resource, with a new path_forbidden error reason.
-
 ## [3.1.1](changelog/3.1.x/3.1.1.md) — 2026-04-29
-
-Adopt the mcp-ts-core 0.8.6 recovery-hint contract — every error declares a recovery, ObsidianService threads it onto the wire, and a new periodic_disabled reason distinguishes a disabled period from a missing periodic note.
 
 ## [3.1.0](changelog/3.1.x/3.1.0.md) — 2026-04-29
 
-obsidian_write_note refuses to clobber existing notes by default — opt in with overwrite:true; obsidian_list_commands moves behind OBSIDIAN_ENABLE_COMMANDS alongside obsidian_execute_command.
-
-## [3.0.0](changelog/3.0.x/3.0.0.md) — 2026-04-28 · ⚠️ Breaking
-
-Full rewrite on @cyanheads/mcp-ts-core. 14 tools and 3 resources expose the Obsidian Local REST API as a typed, declarative MCP surface — section-aware editing, three-mode search, and tag reconciliation.
+## [3.0.0](changelog/3.0.x/3.0.0.md) — 2026-04-28

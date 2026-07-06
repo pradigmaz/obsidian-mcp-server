@@ -1,409 +1,56 @@
-# Agent Protocol
+# Agent Instructions
 
-**Server:** obsidian-mcp-server
-**Version:** 3.2.7
-**Framework:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) `^0.10.6`
-**Engines:** Bun ≥1.3.11, Node ≥24.0.0
-**MCP SDK:** `@modelcontextprotocol/sdk` ^1.29.0
-**Zod:** ^4.4.3
+## Scope
+- Active MCP server fork for `Knowledge Analytics`.
+- Base project: `cyanheads/obsidian-mcp-server`.
+- Public API uses Knowledge naming, not RMU naming.
+- Upstream/generated protocol notes preserved at `.agents/docs/upstream-agent-protocol.md`; load only when changing framework/tool scaffolding patterns.
+- Load workspace doc `E:\mcp\.agents\docs\knowledge-mcp-server\README.md`.
+- Load project skill set `E:\mcp\.agents\skills\knowledge-mcp-server\README.md`.
 
-> **Read the framework docs first:** `node_modules/@cyanheads/mcp-ts-core/CLAUDE.md` contains the full API reference — builders, Context, error codes, exports, patterns. This file covers server-specific conventions only.
-
----
-
-## What's Next?
-
-When the user asks what to do next, what's left, or needs direction, suggest relevant options based on the current project state:
-
-1. **Re-run the `setup` skill** — ensures CLAUDE.md, skills, structure, and metadata are populated and up to date with the current codebase
-2. **Run the `design-mcp-server` skill** — if the tool/resource surface hasn't been mapped yet, work through domain design
-3. **Add tools/resources/prompts** — scaffold new definitions using the `add-tool`, `add-app-tool`, `add-resource`, `add-prompt` skills
-4. **Add services** — scaffold domain service integrations using the `add-service` skill
-5. **Add tests** — scaffold tests for existing definitions using the `add-test` skill
-6. **Field-test definitions** — exercise tools/resources/prompts with real inputs using the `field-test` skill, get a report of issues and pain points
-7. **Run `devcheck`** — lint, format, typecheck, and security audit
-8. **Run the `security-pass` skill** — audit handlers for MCP-specific security gaps: output injection, scope blast radius, input sinks, tenant isolation
-9. **Run the `polish-docs-meta` skill** — finalize README, CHANGELOG, metadata, and agent protocol for shipping
-10. **Run the `maintenance` skill** — investigate changelogs, adopt upstream changes, and sync skills after `bun update --latest`
-
-Tailor suggestions to what's actually missing or stale — don't recite the full list every time.
-
----
-
-## Core Rules
-
-- **Logic throws, framework catches.** Tool/resource handlers are pure — throw on failure, no `try/catch`. Plain `Error` is fine; the framework catches, classifies, and formats. Use error factories (`notFound()`, `validationError()`, etc.) when the error code matters.
-- **Use `ctx.log`** for request-scoped logging. No `console` calls.
-- **Check `ctx.elicit`** for presence before calling — used by `obsidian_delete_note` to confirm destructive ops.
-- **All Obsidian access goes through `getObsidianService()`.** No direct `fetch()` calls to the Local REST API in tools/resources — the service centralizes auth, TLS, timeouts, and `ctx.signal` propagation.
-- **Secrets in env vars only.** `OBSIDIAN_API_KEY` is required; never hardcoded.
-- **Command-palette tools are opt-in.** `obsidian_list_commands` and `obsidian_execute_command` are callable only when `OBSIDIAN_ENABLE_COMMANDS=true` — Obsidian commands are opaque and can be destructive. When the flag is unset, the entry point wraps both with `disabledTool()` so they're absent from `tools/list` (LLM can't invoke) but visible in the operator-facing manifest with a hint to enable them.
-- **Path-policy gating goes through `PathPolicy`.** Every path-taking method on `ObsidianService` calls `policy.assertReadable` / `assertWritable` before the upstream HTTP call; `obsidian_search_notes` post-filters hits via `svc.policy.filterReadable`. Don't bypass this — `OBSIDIAN_READ_PATHS` / `OBSIDIAN_WRITE_PATHS` / `OBSIDIAN_READ_ONLY` are the single chokepoint, and `path_forbidden` is declared on every path-taking tool's `errors[]` contract.
-- **Close the loop on issues.** When implementing work tracked by a GitHub issue, comment on the issue with what landed and close it. Do both — a comment without a close leaves stale issues open; a close without a comment leaves no record of what shipped. The comment is for future readers — state the concrete changes, not the conversation that produced them.
-
----
-
-## Patterns
-
-### Tool — `obsidian_list_tags`
-
-A small read-only tool that wraps a single upstream endpoint, normalizes the response into the output schema, and renders a markdown twin in `format()`.
-
-```ts
-import { tool, z } from '@cyanheads/mcp-ts-core';
-import { getObsidianService } from '@/services/obsidian/obsidian-service.js';
-
-export const obsidianListTags = tool('obsidian_list_tags', {
-  description:
-    'List every tag found across the vault, with usage counts. Includes hierarchical parents — `work/tasks` contributes to both `work` and `work/tasks`.',
-  annotations: { readOnlyHint: true, idempotentHint: true },
-  input: z.object({}),
-  output: z.object({
-    tags: z
-      .array(
-        z.object({
-          name: z.string().describe('Tag name without the leading `#`.'),
-          count: z.number().describe('Usage count across the vault.'),
-        }).describe('A tag with its usage count.'),
-      )
-      .describe('All tags in the vault, in upstream-provided order.'),
-  }),
-  auth: ['tool:obsidian_list_tags:read'],
-
-  async handler(_input, ctx) {
-    const svc = getObsidianService();
-    const tags = await svc.listTags(ctx);
-    return { tags: tags.map((t) => ({ name: t.name, count: t.count })) };
-  },
-
-  // format() populates content[] — the markdown twin of structuredContent.
-  // Different clients read different surfaces (Claude Code → structuredContent,
-  // Claude Desktop → content[]); both must carry the same data.
-  // Enforced at lint time: every field in `output` must appear in the rendered text.
-  format: (result) => {
-    if (result.tags.length === 0) {
-      return [{ type: 'text', text: '_No tags found in the vault._' }];
-    }
-    const lines = [`**${result.tags.length} tags**`, ''];
-    for (const t of result.tags) lines.push(`- \`#${t.name}\` (${t.count})`);
-    return [{ type: 'text', text: lines.join('\n') }];
-  },
-});
-```
-
-For a destructive tool with optional human-in-the-loop confirmation, see `obsidian-delete-note.tool.ts` — it uses `ctx.elicit` when present and falls back to the `destructiveHint` annotation otherwise.
-
-### Resource — `obsidian://status`
-
-```ts
-import { resource, z } from '@cyanheads/mcp-ts-core';
-import { getObsidianService } from '@/services/obsidian/obsidian-service.js';
-
-export const obsidianStatus = resource('obsidian://status', {
-  name: 'obsidian-status',
-  description:
-    'Server reachability, plugin version, and auth status of the Obsidian Local REST API.',
-  mimeType: 'application/json',
-  params: z.object({}),
-  output: z.object({
-    status: z.string().describe('Upstream reported status string.'),
-    service: z.string().describe('Service identifier returned by the plugin.'),
-    authenticated: z.boolean().describe('Whether the configured OBSIDIAN_API_KEY is recognized.'),
-  }),
-  auth: ['resource:obsidian-status:read'],
-  async handler(_params, ctx) {
-    const svc = getObsidianService();
-    return await svc.getStatus(ctx);
-  },
-});
-```
-
-For a parameterized resource, see `obsidian-vault-note.resource.ts` (`obsidian://vault/{+path}`) — the `{+path}` segment captures everything after `/vault/` including slashes.
-
-### Prompt
-
-This server exposes a CRUD/search surface; no recurring multi-turn pattern benefits from a structured prompt template, so `allPromptDefinitions` is intentionally empty. Add one with `prompt('name', { ... })` if a workflow emerges.
-
-### Server config — `OBSIDIAN_*` env vars
-
-```ts
-// src/config/server-config.ts — lazy-parsed, separate from framework config
-import { z } from '@cyanheads/mcp-ts-core';
-import { parseEnvConfig } from '@cyanheads/mcp-ts-core/config';
-
-const envBoolean = z.preprocess((val) => {
-  if (val === undefined || val === null || val === '') return;
-  if (typeof val === 'boolean') return val;
-  return String(val).toLowerCase().trim() === 'true' || val === '1';
-}, z.boolean());
-
-const ServerConfigSchema = z.object({
-  apiKey: z.string().min(1).describe('Bearer token for the Obsidian Local REST API plugin.'),
-  baseUrl: z.string().url().default('http://127.0.0.1:27123'),
-  verifySsl: envBoolean.default(false),
-  requestTimeoutMs: z.coerce.number().int().positive().default(30_000),
-  enableCommands: envBoolean.default(false),
-  /** Path-policy allowlists — comma-separated, prefix-based, case-insensitive. Unset = full vault. */
-  readPaths: envPathList,
-  writePaths: envPathList,
-  readOnly: envBoolean.default(false),
-});
-
-let _config: z.infer<typeof ServerConfigSchema> | undefined;
-export function getServerConfig() {
-  _config ??= parseEnvConfig(ServerConfigSchema, {
-    apiKey: 'OBSIDIAN_API_KEY',
-    baseUrl: 'OBSIDIAN_BASE_URL',
-    verifySsl: 'OBSIDIAN_VERIFY_SSL',
-    requestTimeoutMs: 'OBSIDIAN_REQUEST_TIMEOUT_MS',
-    enableCommands: 'OBSIDIAN_ENABLE_COMMANDS',
-    readPaths: 'OBSIDIAN_READ_PATHS',
-    writePaths: 'OBSIDIAN_WRITE_PATHS',
-    readOnly: 'OBSIDIAN_READ_ONLY',
-  });
-  return _config;
-}
-```
-
-`parseEnvConfig` maps Zod schema paths → env var names so validation errors name the actual variable (`OBSIDIAN_API_KEY`) rather than the internal path (`apiKey`). It throws a `ConfigurationError` the framework catches and prints as a clean startup banner.
-
----
-
-## Context
-
-Handlers receive a unified `ctx` object. Properties this server actually uses:
-
-| Property | Description |
-|:---------|:------------|
-| `ctx.log` | Request-scoped logger — `.debug()`, `.info()`, `.notice()`, `.warning()`, `.error()`. Auto-correlates requestId, traceId, tenantId. |
-| `ctx.elicit` | Optional human-in-the-loop confirmation. **Check for presence first** — used by `obsidian_delete_note` to confirm destructive operations when the client supports elicitation. |
-| `ctx.signal` | `AbortSignal` propagated to the Local REST API client so per-request timeouts and client cancellations cut off in-flight HTTP. |
-| `ctx.requestId` | Unique request ID — surfaces in log lines for correlation. |
-| `ctx.tenantId` | Tenant ID from JWT or `'default'` for stdio. |
-
-The framework also provides `ctx.state` and `ctx.progress`. They aren't used by this server — Obsidian is single-vault and stateless from the server's perspective, so per-tenant KV and progress streams aren't needed. See the framework `CLAUDE.md` for the full surface.
-
----
-
-## Errors
-
-Handlers throw — the framework catches, classifies, and formats.
-
-**Recommended: typed error contract.** Declare `errors: [{ reason, code, when, recovery, retryable? }]` on `tool()` / `resource()` to receive a typed `ctx.fail(reason, …)` keyed by the declared reason union. TypeScript catches `ctx.fail('typo')` at compile time, `data.reason` is auto-populated for observability, and the linter enforces conformance against the handler body. The `recovery` field is required descriptive metadata (≥ 5 words, lint-validated) — it's the single source of truth for the recovery hint that flows to the wire. Spread `ctx.recoveryFor('reason')` into `data` to opt the contract recovery onto the wire (the framework mirrors `data.recovery.hint` into `content[]` text). Override with explicit `{ recovery: { hint: '...' } }` when runtime context matters. Baseline codes (`InternalError`, `ServiceUnavailable`, `Timeout`, `ValidationError`, `SerializationError`) bubble freely and don't need declaring.
-
-```ts
-errors: [
-  { reason: 'note_missing', code: JsonRpcErrorCode.NotFound,
-    when: 'No note matched the path',
-    recovery: 'Verify the path with obsidian_list_notes or use obsidian_search_notes to locate the note.' },
-  { reason: 'plugin_unreachable', code: JsonRpcErrorCode.ServiceUnavailable,
-    when: 'Local REST API plugin is offline', retryable: true,
-    recovery: 'Confirm Obsidian is running with the Local REST API plugin enabled.' },
-],
-async handler(input, ctx) {
-  const note = await svc.getNote(input.path, ctx);
-  // Static recovery — pulled from the contract via ctx.recoveryFor.
-  if (!note) throw ctx.fail('note_missing', `Note ${input.path} not found`, {
-    ...ctx.recoveryFor('note_missing'),
-  });
-  return note;
-}
-```
-
-**Declare contracts inline on each tool, even when they look similar across tools.** The contract is part of the tool's documented public surface — reading one tool definition file should give the full picture (input, output, errors, handler, format). Don't extract a shared `errors[]` constant or contract module to deduplicate; per-tool repetition is the intended cost of locality, and dynamic `recovery` hints often need tool-specific context anyway.
-
-Services that accept `ctx` use the same resolver for parity. The Obsidian service threads `ctx` into `#throwForStatus` and spreads `ctx.recoveryFor(reason)` per status branch, so service-side throws carry the calling tool's contract recovery onto the wire:
-
-```ts
-// inside obsidian-service.ts
-throw notFound(`Not found: ${display}`, data('note_missing'));
-// where data(reason) does: { path, reason, ...ctx.recoveryFor(reason), upstream? }
-```
-
-**Fallback for ad-hoc throws** (no contract entry fits, prototype tools, service-layer code without a contract): use error factories.
-
-```ts
-import { notFound, validationError, serviceUnavailable } from '@cyanheads/mcp-ts-core/errors';
-throw notFound('Note not found', { path });
-throw serviceUnavailable('Local REST API unavailable', { url }, { cause: err });
-```
-
-For HTTP responses from the Local REST API, use `httpErrorFromResponse(response, { service: 'obsidian-rest' })` from `/utils` — maps the full status table (401/403/408/422/429/5xx) and captures body + `Retry-After`.
-
-Available factories: `notFound`, `validationError`, `forbidden`, `unauthorized`, `invalidParams`, `invalidRequest`, `conflict`, `rateLimited`, `timeout`, `serviceUnavailable`, `configurationError`, `internalError`, `serializationError`, `databaseError`. Plain `Error` is also auto-classified from message patterns (`'not found'` → `NotFound`, etc.). See framework CLAUDE.md and the `api-errors` skill for the full pattern table.
-
----
-
-## Structure
-
-```text
-src/
-  index.ts                              # createApp() entry point — registers tools/resources, inits Obsidian service
-  config/
-    server-config.ts                    # OBSIDIAN_* env vars (Zod schema)
-  services/
-    obsidian/
-      obsidian-service.ts               # Local REST API client (init/accessor pattern)
-      frontmatter-ops.ts                # YAML frontmatter parse/serialize/edit helpers
-      section-extractor.ts              # Heading/block/frontmatter section extraction
-      types.ts                          # Domain types (NoteJson, NoteTarget, etc.)
-  mcp-server/
-    tools/definitions/
-      _shared/schemas.ts                # Shared TargetSchema + SectionSchema reused across tools
-      index.ts                          # read/write/command tool sets + buildSearchNotesTool factory (Omnisearch-aware)
-      obsidian-*.tool.ts                # 14 tool definitions (12 base + 2 opt-in command-palette pair)
-    resources/definitions/
-      index.ts                          # allResourceDefinitions[]
-      obsidian-vault-note.resource.ts   # obsidian://vault/{+path}
-      obsidian-tags.resource.ts         # obsidian://tags
-      obsidian-status.resource.ts       # obsidian://status
-    prompts/definitions/
-      index.ts                          # allPromptDefinitions = [] (intentionally empty)
-```
-
----
+## Project Identity
+- Server package still derives from `obsidian-mcp-server`.
+- Product identity: `Knowledge Analytics`.
+- Server role: stable MCP tool surface and schema gatekeeper.
+- Vault-side heavy logic lives in `E:\mcp\knowledge-obsidian-plugin`.
 
 ## Naming
+- Tools: `obsidian_knowledge_smart_search`, `obsidian_knowledge_health_report`, `obsidian_knowledge_workspace_brief`.
+- Env: `OBSIDIAN_KNOWLEDGE_URL`, default `http://127.0.0.1:27125`.
+- Avoid `obsidian_rmu_*`, `OBSIDIAN_RMU_URL`, `RMU Analytics`.
 
-| What | Convention | Example |
-|:-----|:-----------|:--------|
-| Files | kebab-case with suffix | `search-docs.tool.ts` |
-| Tool/resource/prompt names | snake_case | `search_docs` |
-| Directories | kebab-case | `src/services/doc-search/` |
-| Descriptions | Single string or template literal, no `+` concatenation | `'Search items by query and filter.'` |
+## Architecture
+- MCP tools call the Knowledge plugin HTTP API.
+- Keep schemas/tool definitions stable and compact.
+- Do not duplicate Omnisearch indexing here.
+- Write schemas require OKF minimum `type`; accept optional `title`, `description`, `summary`.
+- If adapting RMU behavior, compare `E:\mcp\rust-mcp-universal` first, then translate names/contracts to Knowledge.
 
----
-
-## Skills
-
-Skills are modular instructions in `skills/` at the project root. Read them directly when a task matches — e.g., `skills/add-tool/SKILL.md` when adding a tool.
-
-**Agent skill directory:** Copy skills into the directory your agent discovers (Claude Code: `.claude/skills/`, others: equivalent). This makes skills available as context without needing to reference `skills/` paths manually. After framework updates, run the `maintenance` skill — it re-syncs the agent directory automatically (Phase B).
-
-Available skills:
-
-| Skill | Purpose |
-|:------|:--------|
-| `setup` | Post-init project orientation |
-| `design-mcp-server` | Design tool surface, resources, and services for a new server |
-| `add-tool` | Scaffold a new tool definition |
-| `add-app-tool` | Scaffold an MCP App tool + paired UI resource |
-| `add-resource` | Scaffold a new resource definition |
-| `add-prompt` | Scaffold a new prompt definition |
-| `add-service` | Scaffold a new service integration |
-| `add-test` | Scaffold test file for a tool, resource, or service |
-| `field-test` | Exercise tools/resources/prompts with real inputs, verify behavior, report issues |
-| `security-pass` | Audit server for MCP-flavored security gaps: output injection, scope blast radius, input sinks, tenant isolation |
-| `tool-defs-analysis` | Read-only audit of MCP definition language across the surface — voice, leaks, defaults, recovery hints, output descriptions |
-| `code-simplifier` | Post-session cleanup against `git diff` — modernize syntax, consolidate duplication, align with the codebase |
-| `devcheck` | Lint, format, typecheck, audit |
-| `polish-docs-meta` | Finalize docs, README, metadata, and agent protocol for shipping |
-| `git-wrapup` | Land working-tree changes as a versioned commit + annotated tag — version bump, changelog, verify, tag. Local only. |
-| `release-and-publish` | Ship a release end-to-end across npm, MCP Registry, GitHub Releases (`.mcpb`), and GHCR |
-| `maintenance` | Investigate changelogs, adopt upstream changes, sync skills to agent dirs |
-| `orchestrations` | Chain task skills into a gated multi-phase pipeline — build-out, QA-fix, update-ship — when you can spawn sub-agents |
-| `report-issue-framework` | File a bug or feature request against `@cyanheads/mcp-ts-core` via `gh` CLI |
-| `report-issue-local` | File a bug or feature request against this server's own repo via `gh` CLI |
-| `api-auth` | Auth modes, scopes, JWT/OAuth |
-| `api-canvas` | DataCanvas: register tabular data, run SQL, export, plus the `spillover()` helper for big result sets — Tier 3 opt-in |
-| `api-config` | AppConfig, parseConfig, env vars |
-| `api-context` | Context interface, logger, state, progress |
-| `api-errors` | McpError, JsonRpcErrorCode, error patterns |
-| `api-linter` | Definition linter rule catalog — invoked by `bun run lint:mcp` and `devcheck` |
-| `api-services` | LLM, Speech, Graph services |
-| `api-telemetry` | OTel catalog: spans, metrics, completion logs, env config, cardinality rules |
-| `api-testing` | createMockContext, test patterns |
-| `api-utils` | Formatting, parsing, security, pagination, scheduling, telemetry helpers |
-| `api-workers` | Cloudflare Workers runtime |
-
-**Chaining skills into pipelines.** When the user wants a multi-phase effort — build this server out, QA-and-fix the surface, update-and-ship — *and you can spawn sub-agents*, `skills/orchestrations/SKILL.md` sequences the task skills above into a gated pipeline with verification at each step. Read it to drive the run. Optional: skip it if you can't orchestrate sub-agents, and ignore it entirely if you were *spawned* as one — you've already been scoped to a single phase.
-
-When you complete a skill's checklist, check the boxes and add a completion timestamp at the end (e.g., `Completed: 2026-03-11`).
-
----
+## Key Files
+- Client: `src/mcp-server/tools/definitions/obsidian-knowledge-client.ts`
+- Tools: `src/mcp-server/tools/definitions/obsidian-knowledge-*.tool.ts`
+- Registry: `src/mcp-server/tools/definitions/index.ts`
 
 ## Commands
+| Task | Command |
+|---|---|
+| Typecheck | `Set-Location -LiteralPath 'E:\mcp\knowledge-mcp-server'; npx tsc --noEmit` |
+| Build | `Set-Location -LiteralPath 'E:\mcp\knowledge-mcp-server'; npx tsc ; npx tsc-alias` |
+| Tests | `Set-Location -LiteralPath 'E:\mcp\knowledge-mcp-server'; npx vitest run` |
+| Project devcheck | `Set-Location -LiteralPath 'E:\mcp\knowledge-mcp-server'; bun run devcheck` |
+| Naming scan | `rg -n "RMU|Rmu|rmu" E:\mcp\knowledge-mcp-server\src` |
 
-**Runtime:** Scripts use `tsx` — both `bun run <cmd>` and `npm run <cmd>` work. `bun` is preferred (faster startup, native TS).
+## Troubleshooting
+- If MCP client throws `context deadline exceeded`, verify `dist` matches `src` after renaming tools/schemas.
+- After schema/tool renames, run build before retrying MCP init.
 
-| Command | Purpose |
-|:--------|:--------|
-| `bun run build` | Compile TypeScript |
-| `bun run rebuild` | Clean + build |
-| `bun run clean` | Remove build artifacts |
-| `bun run devcheck` | Lint + format + typecheck + security + changelog sync |
-| `bun run audit:refresh` | Delete `bun.lock`, reinstall, and re-run `bun audit`. Use when `devcheck` flags a transitive advisory — Bun's `update` is sticky on transitive resolutions, so the advisory may be a stale-lockfile false positive. If it survives the refresh, it's real. |
-| `bun run tree` | Generate `docs/tree.md` |
-| `bun run list-skills` | Print project skill index (name, version, description) |
-| `bun run format` | Auto-fix formatting (safe fixes only) |
-| `bun run format:unsafe` | Also apply Biome's unsafe autofixes — review the diff; they can change behavior |
-| `bun run lint:mcp` | Validate MCP definitions against the linter rules |
-| `bun run lint:packaging` | Validate env var alignment between `manifest.json` and `server.json` |
-| `bun run bundle` | Build, pack, and clean a `.mcpb` for one-click Claude Desktop install |
-| `bun run test` | Run Vitest tests |
-| `bun run start:stdio` | Production mode (stdio) — requires `bun run build` first |
-| `bun run start:http` | Production mode (HTTP) — requires `bun run build` first |
-| `bun run changelog:build` | Regenerate `CHANGELOG.md` rollup from `changelog/<minor>.x/*.md` |
-| `bun run changelog:check` | Verify `CHANGELOG.md` is in sync (used by devcheck) |
+## References
+- Product doc: `E:\mcp\docs\knowledge-analytics\knowledge_analytics.md`
+- Function spec: `E:\mcp\docs\knowledge-analytics\function_spec.md`
+- Upstream protocol notes: `.agents/docs/upstream-agent-protocol.md`
 
----
-
-## Bundling
-
-`bun run bundle` produces a `.mcpb` extension bundle for one-click install in Claude Desktop. The pack step is followed by `scripts/clean-mcpb.ts`, which prunes dev dependencies (`mcpb clean`) and strips dependency-shipped agent docs (`node_modules/**` `skills/`, `.claude/`, `.agents/`, `SKILL.md`) that root-anchored `.mcpbignore` patterns cannot reach. MCPB is stdio-only — HTTP deployments are unaffected. Delete `manifest.json` and `.mcpbignore` if not shipping MCPB bundles; `lint:packaging` skips cleanly.
-
-**Adding an env var requires both files:** `server.json` (`environmentVariables[]`) and `manifest.json` (`mcp_config.env` + `user_config`). `lint:packaging` (run by `devcheck`) verifies the env var names match.
-
----
-
-## Changelog
-
-Directory-based, grouped by minor series using the `.x` semver-wildcard convention. Source of truth is `changelog/<major.minor>.x/<version>.md` (e.g. `changelog/0.1.x/0.1.0.md`) — one file per released version, shipped in the npm package. At release time, author the per-version file with a concrete version and date, then run `npm run changelog:build` to regenerate the rollup. `changelog/template.md` is a **pristine format reference** — never edited, never renamed, never moved. Read it to remember the frontmatter + section layout when scaffolding a new per-version file. `CHANGELOG.md` is a **navigation index** (header + link + one-line summary per version), regenerated by `npm run changelog:build`. Devcheck hard-fails on drift. Never hand-edit `CHANGELOG.md`.
-
-Each per-version file opens with YAML frontmatter:
-
-```markdown
----
-summary: One-line headline, ≤350 chars  # required — powers the rollup index
-breaking: false                          # optional — true flags breaking changes
-security: false                          # optional — true flags security fixes
----
-
-# 0.1.0 — YYYY-MM-DD
-...
+## Commit Attribution
+AI commits MUST include:
 ```
-
-`breaking: true` renders a `· ⚠️ Breaking` badge — use it when consumers must update code on upgrade (signature changes, removed APIs, config renames). `security: true` renders a `· 🛡️ Security` badge and pairs with a `## Security` body section. When both are set, badges render `· ⚠️ Breaking · 🛡️ Security`.
-
----
-
-## Imports
-
-```ts
-// Framework — z is re-exported, no separate zod import needed
-import { tool, z } from '@cyanheads/mcp-ts-core';
-import { McpError, JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
-
-// Server's own code — via path alias
-import { getMyService } from '@/services/my-domain/my-service.js';
+Co-Authored-By: (the agent model's name and attribution byline)
 ```
-
----
-
-## Checklist
-
-- [ ] Zod schemas: all fields have `.describe()`, only JSON-Schema-serializable types (no `z.custom()`, `z.date()`, `z.transform()`, `z.bigint()`, `z.symbol()`, `z.void()`, `z.map()`, `z.set()`, `z.function()`, `z.nan()`)
-- [ ] Optional nested objects: handler guards for empty inner values from form-based clients (`if (input.obj?.field && ...)`, not just `if (input.obj)`). When regex/length constraints matter, use `z.union([z.literal(''), z.string().regex(...).describe(...)])` — literal variants are exempt from `describe-on-fields`.
-- [ ] JSDoc `@fileoverview` + `@module` on every file
-- [ ] `ctx.log` for logging, `ctx.state` for storage
-- [ ] Handlers throw on failure — error factories or plain `Error`, no try/catch
-- [ ] `format()` renders all data the LLM needs — different clients forward different surfaces (Claude Code → `structuredContent`, Claude Desktop → `content[]`); both must carry the same data
-- [ ] If wrapping external API: raw/domain/output schemas reviewed against real upstream sparsity/nullability before finalizing required vs optional fields
-- [ ] If wrapping external API: normalization and `format()` preserve uncertainty; do not fabricate facts from missing upstream data
-- [ ] If wrapping external API: tests include at least one sparse payload case with omitted upstream fields
-- [ ] Registered in `createApp()` arrays (directly or via barrel exports). Conditional registration (e.g. `commandToolDefinitions` behind `OBSIDIAN_ENABLE_COMMANDS`) happens in `src/index.ts`, not in the barrel
-- [ ] Tests use `createMockContext()` from `@cyanheads/mcp-ts-core/testing`
-- [ ] `.codex-plugin/plugin.json` populated — `name`, `version`, `description`, `repository`, `license` from `package.json`; `interface.displayName` = package name; `interface.shortDescription` from `package.json` description
-- [ ] `.codex-plugin/mcp.json` updated — server name key matches `package.json` name; env vars added for any required API keys
-- [ ] `.claude-plugin/plugin.json` populated — `name`, `version`, `description`, `repository`, `license` from `package.json`; inline `mcpServers` entry with server name key, env vars for any required API keys
-- [ ] `bun run devcheck` passes

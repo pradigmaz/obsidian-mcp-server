@@ -151,12 +151,14 @@ const Shell = {
    */
   exec(cmd: string[], options: { cwd: string }): Promise<ShellResult> {
     const [command = '', ...args] = cmd;
+    const shouldUseShell = process.platform === 'win32' && /\.(?:cmd|bat)$/i.test(command);
     return new Promise((resolve) => {
       let proc: ChildProcess;
       try {
         proc = spawn(command, args, {
           cwd: options.cwd,
           stdio: ['ignore', 'pipe', 'pipe'],
+          shell: shouldUseShell,
         });
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -238,6 +240,7 @@ interface DevcheckConfig {
   };
   outdated?: {
     allowlist?: string[];
+    reason?: string;
   };
   skillsSync?: {
     ignore?: string[];
@@ -262,7 +265,48 @@ const DEVCHECK_CONFIG = loadDevcheckConfig(ROOT_DIR);
 const OUTDATED_ALLOWLIST = new Set(DEVCHECK_CONFIG.outdated?.allowlist ?? []);
 
 /** Use bun for package management commands if available, otherwise npm. */
-const PM_CMD = spawnSync('bun', ['--version'], { stdio: 'ignore' }).status === 0 ? 'bun' : 'npm';
+const NPM_CMD = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+const PM_CMD = spawnSync('bun', ['--version'], { stdio: 'ignore' }).status === 0 ? 'bun' : NPM_CMD;
+
+function localBin(rootDir: string, name: string): string {
+  return path.join(
+    rootDir,
+    'node_modules',
+    '.bin',
+    process.platform === 'win32' ? `${name}.cmd` : name,
+  );
+}
+
+function tsScriptCommand(scriptPath: string, ...args: string[]): string[] {
+  if (PM_CMD === 'bun') return ['bun', 'run', scriptPath, ...args];
+  return ['node', '--experimental-strip-types', scriptPath, ...args];
+}
+
+function parseOutdatedPackages(output: string): string[] {
+  const lines = output
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length === 0) return [];
+
+  const stripWorkspaceMarker = (cell: string): string =>
+    cell.replace(/\s*\((?:dev|peer|prod|optional)\)$/, '');
+
+  if (lines.some((line) => line.includes('|'))) {
+    return lines.flatMap((line) => {
+      if (!line.includes('|')) return [];
+      const firstCell = line.split('|')[1]?.trim() ?? '';
+      if (!firstCell || firstCell === 'Package' || /^-+$/.test(firstCell)) return [];
+      return [stripWorkspaceMarker(firstCell)];
+    });
+  }
+
+  return lines.flatMap((line, index) => {
+    if (index === 0 && /^Package\s+Current\s+Wanted\s+Latest\b/.test(line)) return [];
+    const [pkgName] = line.split(/\s+/);
+    return pkgName ? [stripWorkspaceMarker(pkgName)] : [];
+  });
+}
 
 /**
  * Direct dependencies from package.json, used to classify audit vulnerabilities
@@ -362,6 +406,7 @@ const ALL_CHECKS: Check[] = [
       const excludes = [
         ':!CHANGELOG.md',
         ':!changelog/',
+        ':!skills/',
         ':!*.lock',
         ':!scripts/devcheck.ts',
         ':!tests/',
@@ -415,7 +460,7 @@ const ALL_CHECKS: Check[] = [
     name: 'MCP Definitions',
     flag: '--no-mcp-lint',
     canFix: false,
-    getCommand: () => ['bun', 'run', 'scripts/lint-mcp.ts'],
+    getCommand: () => tsScriptCommand('scripts/lint-mcp.ts'),
     tip: (c) =>
       `Fix definition errors above — each diagnostic links to its rule in ${c.bold('skills/api-linter/SKILL.md')}.`,
   },
@@ -428,7 +473,7 @@ const ALL_CHECKS: Check[] = [
     // — consumers who deleted it for an HTTP-only deploy are unaffected.
     getCommand: () => {
       if (!existsSync(path.join(ROOT_DIR, 'manifest.json'))) return null;
-      return ['bun', 'run', 'scripts/lint-packaging.ts'];
+      return tsScriptCommand('scripts/lint-packaging.ts');
     },
     tip: (c) =>
       `Align env var names between ${c.bold('manifest.json')} ${c.bold('mcp_config.env')} and ${c.bold('server.json')} stdio package ${c.bold('environmentVariables[]')}.`,
@@ -437,7 +482,7 @@ const ALL_CHECKS: Check[] = [
     name: 'Framework Antipatterns',
     flag: '--no-framework-antipatterns',
     canFix: false,
-    getCommand: () => ['bun', 'run', 'scripts/check-framework-antipatterns.ts'],
+    getCommand: () => tsScriptCommand('scripts/check-framework-antipatterns.ts'),
     tip: (c) =>
       `Remove the flagged SDK-coupling shortcut. See ${c.bold('scripts/check-framework-antipatterns.ts')} for rule rationale.`,
   },
@@ -451,7 +496,7 @@ const ALL_CHECKS: Check[] = [
     // consumer projects — the pattern is common and legitimate in consumer code.
     getCommand: () => {
       if (!existsSync(path.join(ROOT_DIR, 'scripts/audit-open-index-signatures.ts'))) return null;
-      return ['bun', 'run', 'scripts/audit-open-index-signatures.ts'];
+      return tsScriptCommand('scripts/audit-open-index-signatures.ts');
     },
     tip: (c) =>
       `Add ${c.bold('// allow open-indexed-named: <rationale>')} above the index signature, or use explicit fields. See ${c.bold('scripts/audit-open-index-signatures.ts')}.`,
@@ -460,7 +505,7 @@ const ALL_CHECKS: Check[] = [
     name: 'Docs Sync',
     flag: '--no-docs-sync',
     canFix: false,
-    getCommand: () => ['bun', 'run', 'scripts/check-docs-sync.ts'],
+    getCommand: () => tsScriptCommand('scripts/check-docs-sync.ts'),
     tip: (c) =>
       `Edit both files together, or run ${c.bold('cp CLAUDE.md AGENTS.md')} (or reverse) to resync.`,
   },
@@ -478,7 +523,7 @@ const ALL_CHECKS: Check[] = [
         existsSync(path.join(ROOT_DIR, '.agents/skills')) ||
         existsSync(path.join(ROOT_DIR, '.claude/skills'));
       if (!hasSkills || !hasMirrors) return null;
-      return ['bun', 'run', 'scripts/check-skills-sync.ts'];
+      return tsScriptCommand('scripts/check-skills-sync.ts');
     },
     isSuccess: (result) => {
       if (result.exitCode === 0) return true;
@@ -498,7 +543,7 @@ const ALL_CHECKS: Check[] = [
     // `skillVersions.ignore`.
     getCommand: () => {
       if (!existsSync(path.join(ROOT_DIR, 'skills'))) return null;
-      return ['bun', 'run', 'scripts/check-skill-versions.ts'];
+      return tsScriptCommand('scripts/check-skill-versions.ts');
     },
     isSuccess: (result) => {
       if (result.exitCode === 0) return true;
@@ -518,7 +563,7 @@ const ALL_CHECKS: Check[] = [
     // alone is a supported configuration (runtime-only consumers, opt-out per #41).
     getCommand: () => {
       if (!existsSync(path.join(ROOT_DIR, 'changelog'))) return null;
-      return ['bun', 'run', 'scripts/build-changelog.ts', '--check'];
+      return tsScriptCommand('scripts/build-changelog.ts', '--check');
     },
     tip: (c) =>
       `Edit the per-version file in ${c.bold('changelog/')} and run ${c.bold('bun run changelog:build')} to regenerate ${c.bold('CHANGELOG.md')}.`,
@@ -528,7 +573,7 @@ const ALL_CHECKS: Check[] = [
     flag: '--no-lint',
     canFix: true,
     getCommand: (ctx, mode) => {
-      const command = [path.join(ctx.rootDir, 'node_modules', '.bin', 'biome'), 'check'];
+      const command = [localBin(ctx.rootDir, 'biome'), 'check'];
       if (mode === 'fix') {
         command.push('--write');
       }
@@ -549,7 +594,7 @@ const ALL_CHECKS: Check[] = [
     flag: '--no-types',
     canFix: false,
     // TypeScript generally needs the whole project context for accurate checking.
-    getCommand: (ctx) => [path.join(ctx.rootDir, 'node_modules', '.bin', 'tsc'), '--noEmit'],
+    getCommand: (ctx) => [localBin(ctx.rootDir, 'tsc'), '--noEmit'],
     tip: () => 'Check TypeScript errors in your IDE or the console output.',
   },
   {
@@ -557,7 +602,7 @@ const ALL_CHECKS: Check[] = [
     flag: '--test',
     canFix: false,
     requiresFlag: true,
-    getCommand: (ctx) => [path.join(ctx.rootDir, 'node_modules', '.bin', 'vitest'), 'run'],
+    getCommand: (ctx) => [localBin(ctx.rootDir, 'vitest'), 'run'],
     tip: () => 'Fix failing tests before committing.',
   },
   {
@@ -566,7 +611,7 @@ const ALL_CHECKS: Check[] = [
     canFix: false,
     slowCheck: true,
     getCommand: (ctx) => {
-      const cmd = [path.join(ctx.rootDir, 'node_modules', '.bin', 'depcheck')];
+      const cmd = [localBin(ctx.rootDir, 'depcheck')];
       const ignores = DEVCHECK_CONFIG.depcheck?.ignores ?? ['@types/*'];
       if (ignores.length > 0) cmd.push(`--ignores=${ignores.join(',')}`);
       const patterns = DEVCHECK_CONFIG.depcheck?.ignorePatterns ?? [];
@@ -640,30 +685,14 @@ const ALL_CHECKS: Check[] = [
       // Exit 0 with empty output = everything up to date
       if (result.exitCode === 0 && result.stdout.trim() === '') return true;
 
-      // Non-zero exit with no tabular output likely means a network/lockfile error — fail hard
       const output = result.stdout.trim();
-      if (result.exitCode !== 0 && !output.includes('|')) return false;
+      const outdatedPackages = parseOutdatedPackages(output);
+      // Non-zero exit with no parseable tabular output likely means a network/lockfile error.
+      if (result.exitCode !== 0 && outdatedPackages.length === 0) return false;
 
-      // Parse the tabular output. `bun outdated` emits markdown-style rows
-      // (`| col1 | col2 | ... |`), so split('|') yields an empty leading cell —
-      // package data starts at index [1]. Strip the trailing `(dev|peer|prod|optional)`
-      // workspace-type marker so the allowlist takes the bare package name.
-      const lines = output.split('\n');
-      const stripWorkspaceMarker = (cell: string): string =>
-        cell.replace(/\s*\((?:dev|peer|prod|optional)\)$/, '');
-      const packageLines = lines.filter((line) => {
-        if (!line.includes('|')) return false;
-        // Skip table chrome: header row and separator (e.g., "---")
-        const firstCell = line.split('|')[1]?.trim() ?? '';
-        if (!firstCell || firstCell === 'Package' || /^-+$/.test(firstCell)) return false;
-        return true;
-      });
-
-      // Check if every outdated package is in the allowlist
-      const unexpected = packageLines.filter((line) => {
-        const pkgName = stripWorkspaceMarker(line.split('|')[1]?.trim() ?? '');
-        return !OUTDATED_ALLOWLIST.has(pkgName);
-      });
+      // Check if every outdated package is in the allowlist. Supports both
+      // `bun outdated` markdown rows and `npm outdated` whitespace tables.
+      const unexpected = outdatedPackages.filter((pkgName) => !OUTDATED_ALLOWLIST.has(pkgName));
 
       return unexpected.length === 0;
     },

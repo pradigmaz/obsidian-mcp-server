@@ -128,7 +128,7 @@ async function probeParentDir(
   try {
     const listing = await svc.listFiles(ctx, dir);
     entries = listing.files;
-  } catch (err) {
+  } catch {
     // Expected on 404 or permission denied; fail silently to continue fallback
     return empty;
   }

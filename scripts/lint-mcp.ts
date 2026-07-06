@@ -16,8 +16,10 @@
  *
  * @module scripts/lint-mcp
  */
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { registerHooks } from 'node:module';
+import { dirname, extname, join, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 // ---------------------------------------------------------------------------
 // Import validateDefinitions — resolve from package or local source
@@ -72,6 +74,58 @@ const DEFINITION_SUFFIXES = [
   '.app-tool.ts',
   '.app-resource.ts',
 ];
+
+const ROOT_DIR = resolve('.');
+
+function isFile(path: string): boolean {
+  try {
+    return statSync(path).isFile();
+  } catch {
+    return false;
+  }
+}
+
+function resolveSourceModulePath(basePath: string): string | null {
+  const candidates: string[] = [];
+  const extension = extname(basePath);
+
+  if (extension === '.js') {
+    candidates.push(basePath.replace(/\.js$/, '.ts'), basePath);
+  } else if (extension) {
+    candidates.push(basePath);
+  } else {
+    candidates.push(
+      `${basePath}.ts`,
+      `${basePath}.js`,
+      join(basePath, 'index.ts'),
+      join(basePath, 'index.js'),
+    );
+  }
+
+  return candidates.find(isFile) ?? null;
+}
+
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (specifier.startsWith('@/')) {
+      const resolved = resolveSourceModulePath(resolve(ROOT_DIR, 'src', specifier.slice(2)));
+      if (resolved) return { url: pathToFileURL(resolved).href, shortCircuit: true };
+    }
+
+    if (
+      specifier.startsWith('.') &&
+      specifier.endsWith('.js') &&
+      context.parentURL?.startsWith('file:')
+    ) {
+      const resolved = resolveSourceModulePath(
+        resolve(dirname(fileURLToPath(context.parentURL)), specifier),
+      );
+      if (resolved) return { url: pathToFileURL(resolved).href, shortCircuit: true };
+    }
+
+    return nextResolve(specifier, context);
+  },
+});
 
 function walkDir(dir: string): string[] {
   const results: string[] = [];
@@ -131,7 +185,7 @@ async function main(): Promise<void> {
 
   for (const file of files) {
     try {
-      const mod = await import(file);
+      const mod = await import(pathToFileURL(file).href);
       for (const exported of Object.values(mod)) {
         if (isToolLike(exported)) tools.push(exported);
         else if (isResourceLike(exported)) resources.push(exported);

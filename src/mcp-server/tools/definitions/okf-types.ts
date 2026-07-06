@@ -15,5 +15,7 @@ export const OkfFrontmatterSchema = z.object({
   type: OkfTypeSchema,
   title: OptionalOkfTextSchema.describe('OKF recommended: human-readable display name.'),
   description: OptionalOkfTextSchema.describe('OKF recommended: a short explanation of the note.'),
-  summary: OptionalOkfTextSchema.describe('Local legacy alias. Prefer description for OKF-compatible notes.'),
+  summary: OptionalOkfTextSchema.describe(
+    'Local legacy alias. Prefer description for OKF-compatible notes.',
+  ),
 });

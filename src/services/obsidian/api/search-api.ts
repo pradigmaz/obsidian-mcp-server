@@ -1,9 +1,15 @@
 import type { Context } from '@cyanheads/mcp-ts-core';
 import { serviceUnavailable } from '@cyanheads/mcp-ts-core/errors';
-import type { ObsidianHttpClient } from '../core/http-client.js';
-import type { TextSearchHit, StructuredSearchHit, OmnisearchHit } from '../types.js';
-import { JSONLOGIC_CT, normalizeOmnisearchHit, OMNISEARCH_PROBE_TIMEOUT_MS, deriveOmnisearchUrl, type RawOmnisearchHit } from '../obsidian-utils.js';
 import type { ServerConfig } from '@/config/server-config.js';
+import type { ObsidianHttpClient } from '../core/http-client.js';
+import {
+  deriveOmnisearchUrl,
+  JSONLOGIC_CT,
+  normalizeOmnisearchHit,
+  OMNISEARCH_PROBE_TIMEOUT_MS,
+  type RawOmnisearchHit,
+} from '../obsidian-utils.js';
+import type { OmnisearchHit, StructuredSearchHit, TextSearchHit } from '../types.js';
 
 interface RawSimpleSearchHit {
   filename: string;
@@ -61,14 +67,14 @@ export class SearchApi {
       if (!contentType.toLowerCase().includes('application/json')) return false;
       const body = await res.json().catch(() => undefined);
       return Array.isArray(body);
-    } catch (err) {
+    } catch {
       return false;
     }
   }
 
   async searchOmnisearch(ctx: Context, query: string): Promise<OmnisearchHit[]> {
     const url = `${this.#omnisearchUrl}/search?q=${encodeURIComponent(query)}`;
-    let res;
+    let res: Response;
     try {
       res = await this.#http.fetch(url, {
         method: 'GET',

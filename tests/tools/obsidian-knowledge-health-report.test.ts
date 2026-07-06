@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { obsidianKnowledgeHealthReport } from '../../src/mcp-server/tools/definitions/obsidian-knowledge-health-report.tool.js';
 
 const mockFetch = vi.fn();
@@ -24,41 +24,56 @@ describe('obsidian_knowledge_health_report', () => {
       status: 200,
       json: async () => ({
         status: 'ok',
+        ruleViolations: [],
         hotspots: [
           {
             path: 'lonely.md',
             score: 5,
             roles: [],
-            violations: [{
-              ruleId: 'isolated_note',
-              severity: 'warn',
-              evidence: 'No links',
-              suggestedStep: 'Link it',
-              expectedEffortMin: 2
-            }]
-          }
+            violations: [
+              {
+                ruleId: 'isolated_note',
+                severity: 'warn',
+                evidence: 'No links',
+                suggestedStep: 'Link it',
+                expectedEffortMin: 2,
+              },
+            ],
+            scoreExplanation: {
+              ruleSeverity: 5,
+              noteRole: 0,
+              graphCentrality: 0,
+              freshness: 0,
+              expectedEffort: 2,
+            },
+          },
         ],
         groupedByFolder: {},
-        groupedByTag: {}
-      })
+        groupedByTag: {},
+        severityCounts: { info: 0, warn: 1, high: 0 },
+      }),
     });
 
     const mockCtx = {
       fail: vi.fn(),
-      recoveryFor: vi.fn()
+      recoveryFor: vi.fn(),
     };
 
     const res = await obsidianKnowledgeHealthReport.handler({}, mockCtx as any);
 
-    expect(mockFetch).toHaveBeenCalledWith('http://127.0.0.1:27125/api/health', expect.objectContaining({
-      method: 'GET',
-    }));
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:27125/api/health',
+      expect.objectContaining({
+        method: 'GET',
+      }),
+    );
 
     expect(res.result.hotspots[0].path).toBe('lonely.md');
 
     const formatted = obsidianKnowledgeHealthReport.format(res);
     expect(formatted).toHaveLength(1);
     expect(formatted[0].text).toContain('Total Hotspots: 1');
+    expect(formatted[0].text).toContain('Severity: high 0, warn 1, info 0');
     expect(formatted[0].text).toContain('lonely.md');
   });
 });

@@ -19,6 +19,12 @@ const ENV_KEYS = [
   'OBSIDIAN_WRITE_PATHS',
   'OBSIDIAN_READ_ONLY',
   'OBSIDIAN_OMNISEARCH_URL',
+  'OBSIDIAN_KNOWLEDGE_URL',
+  'OBSIDIAN_DEPENDENCY_STARTUP',
+  'OBSIDIAN_START_OBSIDIAN',
+  'OBSIDIAN_EXECUTABLE_PATH',
+  'OBSIDIAN_STARTUP_URI',
+  'OBSIDIAN_DEPENDENCY_STARTUP_TIMEOUT_MS',
 ] as const;
 
 beforeEach(() => {
@@ -47,6 +53,11 @@ describe('getServerConfig', () => {
       readPaths: undefined,
       writePaths: undefined,
       readOnly: false,
+      knowledgeUrl: 'http://127.0.0.1:27125',
+      dependencyStartupEnabled: true,
+      obsidianStartupEnabled: true,
+      obsidianStartupUri: 'obsidian://open',
+      dependencyStartupTimeoutMs: 30_000,
     });
   });
 
@@ -93,6 +104,24 @@ describe('getServerConfig', () => {
     vi.stubEnv('OBSIDIAN_API_KEY', 'k');
     vi.stubEnv('OBSIDIAN_BASE_URL', 'https://127.0.0.1:27124');
     expect(getServerConfig().baseUrl).toBe('https://127.0.0.1:27124');
+  });
+
+  it('honors Knowledge dependency startup overrides', () => {
+    vi.stubEnv('OBSIDIAN_API_KEY', 'k');
+    vi.stubEnv('OBSIDIAN_KNOWLEDGE_URL', 'http://127.0.0.1:27126');
+    vi.stubEnv('OBSIDIAN_DEPENDENCY_STARTUP', 'false');
+    vi.stubEnv('OBSIDIAN_START_OBSIDIAN', 'off');
+    vi.stubEnv('OBSIDIAN_EXECUTABLE_PATH', 'C:\\Tools\\Obsidian\\Obsidian.exe');
+    vi.stubEnv('OBSIDIAN_STARTUP_URI', 'obsidian://open?vault=obs_bd');
+    vi.stubEnv('OBSIDIAN_DEPENDENCY_STARTUP_TIMEOUT_MS', '1234');
+    expect(getServerConfig()).toMatchObject({
+      knowledgeUrl: 'http://127.0.0.1:27126',
+      dependencyStartupEnabled: false,
+      obsidianStartupEnabled: false,
+      obsidianExecutablePath: 'C:\\Tools\\Obsidian\\Obsidian.exe',
+      obsidianStartupUri: 'obsidian://open?vault=obs_bd',
+      dependencyStartupTimeoutMs: 1234,
+    });
   });
 
   it('throws a configuration error mentioning OBSIDIAN_API_KEY when missing', () => {

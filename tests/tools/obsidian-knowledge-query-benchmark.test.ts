@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { obsidianKnowledgeQueryBenchmark } from '../../src/mcp-server/tools/definitions/obsidian-knowledge-query-benchmark.tool.js';
 
 const mockFetch = vi.fn();
@@ -37,17 +37,19 @@ describe('obsidian_knowledge_query_benchmark', () => {
         latency_p50_ms: 15,
         latency_p95_ms: 15,
         candidate: {
-          runs: [{
-            dataset_path: '.obsidian/knowledge-benchmarks.json',
-            k: 5,
-            query_count: 1,
-            recall_at_k: 1,
-            mrr_at_k: 1,
-            ndcg_at_k: 1,
-            avg_estimated_tokens: 50,
-            latency_p50_ms: 15,
-            latency_p95_ms: 15
-          }],
+          runs: [
+            {
+              dataset_path: '.obsidian/knowledge-benchmarks.json',
+              k: 5,
+              query_count: 1,
+              recall_at_k: 1,
+              mrr_at_k: 1,
+              ndcg_at_k: 1,
+              avg_estimated_tokens: 50,
+              latency_p50_ms: 15,
+              latency_p95_ms: 15,
+            },
+          ],
           median: {
             dataset_path: '.obsidian/knowledge-benchmarks.json',
             k: 5,
@@ -57,8 +59,8 @@ describe('obsidian_knowledge_query_benchmark', () => {
             ndcg_at_k: 1,
             avg_estimated_tokens: 50,
             latency_p50_ms: 15,
-            latency_p95_ms: 15
-          }
+            latency_p95_ms: 15,
+          },
         },
         thresholds: {},
         enforce_gates: false,
@@ -74,35 +76,34 @@ describe('obsidian_knowledge_query_benchmark', () => {
             latency_ms: 15,
             avg_estimated_tokens: 50,
             latency_p50_ms: 15,
-            latency_p95_ms: 15
-          }
-        ]
-      })
+            latency_p95_ms: 15,
+          },
+        ],
+      }),
     });
 
     const mockCtx = {
       fail: vi.fn(),
-      recoveryFor: vi.fn()
+      recoveryFor: vi.fn(),
     };
 
     const res = await obsidianKnowledgeQueryBenchmark.handler(
-      { 
-        cases: [
-          { query: 'test', expectedPaths: ['test.md'], minTopK: 5 }
-        ]
+      {
+        cases: [{ query: 'test', expectedPaths: ['test.md'], minTopK: 5 }],
       },
-      mockCtx as any
+      mockCtx as any,
     );
 
     // Validate request body shape matches plugin expectation
-    expect(mockFetch).toHaveBeenCalledWith('http://127.0.0.1:27125/api/benchmark', expect.objectContaining({
-      method: 'POST',
-      body: JSON.stringify({ 
-        cases: [
-          { query: 'test', expectedPaths: ['test.md'], minTopK: 5 }
-        ]
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:27125/api/benchmark',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          cases: [{ query: 'test', expectedPaths: ['test.md'], minTopK: 5 }],
+        }),
       }),
-    }));
+    );
 
     // Validate structured output
     expect(res.result.pass).toBe(true);

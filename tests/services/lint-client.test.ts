@@ -12,13 +12,24 @@ function clientFor(response: Response): LintClient {
 
 describe('LintClient', () => {
   it('rejects HTTP 200 responses when valid is false', async () => {
-    const client = clientFor(Response.json({
-      valid: false,
-      violations: [{ severity: 'high', ruleId: 'missing_okf', evidence: 'missing type', suggestedStep: 'add type' }],
-    }));
+    const client = clientFor(
+      Response.json({
+        valid: false,
+        violations: [
+          {
+            severity: 'high',
+            ruleId: 'missing_okf',
+            evidence: 'missing type',
+            suggestedStep: 'add type',
+          },
+        ],
+      }),
+    );
 
-    await expect(client.lintWrite(createMockContext(), '/vault/N.md', '# n')).rejects.toMatchObject({
-      data: expect.objectContaining({ reason: 'gatekeeper_rejected' }),
-    });
+    await expect(client.lintWrite(createMockContext(), '/vault/N.md', '# n')).rejects.toMatchObject(
+      {
+        data: expect.objectContaining({ reason: 'gatekeeper_rejected' }),
+      },
+    );
   });
 });

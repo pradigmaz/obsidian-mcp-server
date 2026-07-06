@@ -1,6 +1,6 @@
 import { validationError } from '@cyanheads/mcp-ts-core/errors';
-import type { OmnisearchHit } from './types.js';
 import type { ServerConfig } from '@/config/server-config.js';
+import type { OmnisearchHit } from './types.js';
 
 export interface UpstreamErrorBody {
   errorCode?: number;
@@ -66,7 +66,7 @@ export function displayPath(urlPath: string): string {
   let decoded: string;
   try {
     decoded = decodeURIComponent(noQuery);
-  } catch (err) {
+  } catch {
     // Fall back to un-decoded if URI string is malformed
     decoded = noQuery;
   }
@@ -108,7 +108,7 @@ export function safeUpstream(
  * non-negative integer byte count. Throws when the upstream omits the header
  * or returns a non-numeric value — the size helpers don't fall back to GET.
  */
-export function parseContentLength(res: any, url: string): number {
+export function parseContentLength(res: Pick<Response, 'headers'>, url: string): number {
   const raw = res.headers.get('content-length');
   if (raw === null) {
     throw new Error(
@@ -138,13 +138,13 @@ export function deriveOmnisearchUrl(config: ServerConfig): string {
     const u = new URL(config.baseUrl);
     const host = u.hostname === '127.0.0.1' ? 'localhost' : u.hostname;
     return `http://${host}:${OMNISEARCH_DEFAULT_PORT}`;
-  } catch (err) {
+  } catch {
     // Fall back if config.baseUrl is malformed
     return `http://localhost:${OMNISEARCH_DEFAULT_PORT}`;
   }
 }
 
-export function normalizeOmnisearchHit(raw: any): OmnisearchHit {
+export function normalizeOmnisearchHit(raw: RawOmnisearchHit): OmnisearchHit {
   return {
     basename: raw.basename,
     excerpt: cleanExcerpt(raw.excerpt),
@@ -183,7 +183,7 @@ export function parseJsonObject(text: string): UpstreamErrorBody | undefined {
   try {
     const v = JSON.parse(text);
     return v && typeof v === 'object' ? (v as UpstreamErrorBody) : undefined;
-  } catch (err) {
+  } catch {
     // Expected if body is not valid JSON
     return;
   }

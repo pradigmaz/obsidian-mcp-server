@@ -8,13 +8,13 @@ import { tool, z } from '@cyanheads/mcp-ts-core';
 import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
 import { getObsidianService } from '@/services/obsidian/obsidian-service.js';
 import { extractSection } from '@/services/obsidian/section-extractor.js';
-import { SectionSchema, TargetSchema } from './_shared/schemas.js';
-import { withCaseFallback } from './_shared/suggest-paths.js';
 import {
   parseOutgoingLinks,
   reclassifyAsSectionMiss,
   stringifyValue,
 } from './_shared/markdown-utils.js';
+import { SectionSchema, TargetSchema } from './_shared/schemas.js';
+import { withCaseFallback } from './_shared/suggest-paths.js';
 
 const StatSchema = z.object({
   ctime: z.number().describe('Created time, ms since epoch.'),
@@ -331,5 +331,3 @@ export const obsidianGetNote = tool('obsidian_get_note', {
     ];
   },
 });
-
-

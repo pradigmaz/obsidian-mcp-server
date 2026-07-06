@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { obsidianKnowledgeSmartSearch } from '../../src/mcp-server/tools/definitions/obsidian-knowledge-smart-search.tool.js';
 
 const mockFetch = vi.fn();
@@ -26,41 +26,61 @@ describe('obsidian_knowledge_smart_search', () => {
         status: 'ok',
         query: 'test query',
         results: [
-          { path: 'test.md', score: 2.5, why: ['link boost'], excerpt: 'some excerpt' }
+          {
+            path: 'test.md',
+            score: 2.5,
+            scoreParts: {
+              omnisearch: 1,
+              backlinks: 0.5,
+              outgoingLinks: 0.2,
+              tagFolder: 0.1,
+              recency: 0.1,
+              apiSurface: 0.6,
+              generatedPenalty: 1,
+            },
+            why: ['link boost'],
+            excerpt: 'some excerpt',
+          },
         ],
         queryReport: {
           source: 'vault-text',
           fallbackUsed: true,
           resultCount: 1,
-          warnings: ['omnisearch disabled']
-        }
-      })
+          warnings: ['omnisearch disabled'],
+          filters: { tags: ['#project'] },
+          topRankingFactors: ['omnisearch', 'apiSurface'],
+          degradation: ['vault-text'],
+        },
+      }),
     });
 
     const mockCtx = {
       fail: vi.fn(),
-      recoveryFor: vi.fn()
+      recoveryFor: vi.fn(),
     };
 
     const res = await obsidianKnowledgeSmartSearch.handler(
-      { 
-        query: 'test query', 
+      {
+        query: 'test query',
         limit: 5,
         intent: 'research',
-        filters: { tags: ['#project'] }
+        filters: { tags: ['#project'] },
       },
-      mockCtx as any
+      mockCtx as any,
     );
 
-    expect(mockFetch).toHaveBeenCalledWith('http://127.0.0.1:27125/api/search', expect.objectContaining({
-      method: 'POST',
-      body: JSON.stringify({ 
-        query: 'test query', 
-        limit: 5,
-        intent: 'research',
-        filters: { tags: ['#project'] }
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:27125/api/search',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          query: 'test query',
+          limit: 5,
+          intent: 'research',
+          filters: { tags: ['#project'] },
+        }),
       }),
-    }));
+    );
 
     expect(res.result.queryReport?.fallbackUsed).toBe(true);
 

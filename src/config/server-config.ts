@@ -160,6 +160,38 @@ const ServerConfigSchema = z.object({
         'Base URL of the Knowledge Analytics Obsidian plugin HTTP endpoint. Defaults to http://127.0.0.1:27125.',
       ),
   ),
+  dependencyStartupEnabled: envBoolean
+    .default(true)
+    .describe(
+      'When true, MCP startup prepares local dependencies before tools are used. Disable with OBSIDIAN_DEPENDENCY_STARTUP=false.',
+    ),
+  obsidianStartupEnabled: envBoolean
+    .default(true)
+    .describe(
+      'When true, MCP startup quietly launches Obsidian if the Knowledge Analytics endpoint is not ready.',
+    ),
+  obsidianExecutablePath: z.preprocess(
+    (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
+    z
+      .string()
+      .optional()
+      .describe(
+        'Optional executable path for background Obsidian startup. On Windows, defaults to LOCALAPPDATA\\Programs\\Obsidian\\Obsidian.exe.',
+      ),
+  ),
+  obsidianStartupUri: z.preprocess(
+    (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
+    z
+      .string()
+      .default('obsidian://open')
+      .describe('URI argument passed to Obsidian during background startup.'),
+  ),
+  dependencyStartupTimeoutMs: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(30_000)
+    .describe('Maximum startup wait for local dependencies, in milliseconds.'),
   maxBackupsPerNote: z.coerce
     .number()
     .int()
@@ -171,7 +203,9 @@ const ServerConfigSchema = z.object({
     z
       .string()
       .optional()
-      .describe('Absolute path to a custom directory for temporary backups. Defaults to OS temp dir / knowledge-mcp-backups.'),
+      .describe(
+        'Absolute path to a custom directory for temporary backups. Defaults to OS temp dir / knowledge-mcp-backups.',
+      ),
   ),
 });
 
@@ -193,6 +227,11 @@ export function getServerConfig(): ServerConfig {
     readOnly: 'OBSIDIAN_READ_ONLY',
     omnisearchUrl: 'OBSIDIAN_OMNISEARCH_URL',
     knowledgeUrl: 'OBSIDIAN_KNOWLEDGE_URL',
+    dependencyStartupEnabled: 'OBSIDIAN_DEPENDENCY_STARTUP',
+    obsidianStartupEnabled: 'OBSIDIAN_START_OBSIDIAN',
+    obsidianExecutablePath: 'OBSIDIAN_EXECUTABLE_PATH',
+    obsidianStartupUri: 'OBSIDIAN_STARTUP_URI',
+    dependencyStartupTimeoutMs: 'OBSIDIAN_DEPENDENCY_STARTUP_TIMEOUT_MS',
     maxBackupsPerNote: 'OBSIDIAN_MAX_BACKUPS_PER_NOTE',
     backupDirectory: 'OBSIDIAN_BACKUP_DIRECTORY',
   });

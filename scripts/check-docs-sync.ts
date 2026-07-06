@@ -25,6 +25,21 @@ import process from 'node:process';
 
 const MAX_DIFF_LINES = 20;
 
+interface DocsSyncConfig {
+  docsSync?: {
+    reason?: string;
+    rootPair?: 'sync' | 'independent';
+  };
+}
+
+function loadConfig(): DocsSyncConfig {
+  try {
+    return JSON.parse(readFileSync(resolve('devcheck.config.json'), 'utf-8')) as DocsSyncConfig;
+  } catch {
+    return {};
+  }
+}
+
 /**
  * Line-by-line drift summary. Not a true unified diff — tools that move lines
  * will show every shifted line as divergent, which is fine for the enforcement
@@ -83,6 +98,14 @@ function checkPair(prefix: string): boolean {
 
   if (claude === agents) {
     console.log(`${claudeLabel} and ${agentsLabel} are in sync.`);
+    return true;
+  }
+
+  const config = loadConfig();
+  if (prefix === '' && config.docsSync?.rootPair === 'independent') {
+    console.log(
+      `${claudeLabel} and ${agentsLabel} are intentionally independent: ${config.docsSync.reason ?? 'configured in devcheck.config.json'}`,
+    );
     return true;
   }
 

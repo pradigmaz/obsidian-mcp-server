@@ -20,23 +20,26 @@ export const obsidianPatchNote = tool('obsidian_patch_note', {
   description:
     'Edit a heading, block reference, or frontmatter field in place — append to, prepend to, or replace the target\'s body. Use `obsidian_get_note` with `format: "document-map"` to discover available targets first; nested headings need `Parent::Child` syntax.',
   annotations: { destructiveHint: true },
-  input: z.object({
-    target: TargetSchema.describe('Where the note lives.'),
-  }).merge(OkfFrontmatterSchema).extend({
-    section: SectionSchema.describe('Which heading/block/frontmatter field to edit.'),
-    operation: z
-      .enum(['append', 'prepend', 'replace'])
-      .describe(
-        "How to apply `content` relative to the targeted section. `append` — at the end of the target's body (for headings, before the next sibling/parent heading; for frontmatter array fields, as a new array item). `prepend` — at the start. `replace` — swaps the target's body.",
+  input: z
+    .object({
+      target: TargetSchema.describe('Where the note lives.'),
+    })
+    .merge(OkfFrontmatterSchema)
+    .extend({
+      section: SectionSchema.describe('Which heading/block/frontmatter field to edit.'),
+      operation: z
+        .enum(['append', 'prepend', 'replace'])
+        .describe(
+          "How to apply `content` relative to the targeted section. `append` — at the end of the target's body (for headings, before the next sibling/parent heading; for frontmatter array fields, as a new array item). `prepend` — at the start. `replace` — swaps the target's body.",
+        ),
+      content: z
+        .string()
+        .describe('Body to insert/replace. Markdown unless `contentType` is `json`.'),
+      contentType: ContentTypeSchema,
+      patchOptions: PatchOptionsSchema.describe(
+        'Optional flags: createTargetIfMissing, applyIfContentPreexists, trimTargetWhitespace.',
       ),
-    content: z
-      .string()
-      .describe('Body to insert/replace. Markdown unless `contentType` is `json`.'),
-    contentType: ContentTypeSchema,
-    patchOptions: PatchOptionsSchema.describe(
-      'Optional flags: createTargetIfMissing, applyIfContentPreexists, trimTargetWhitespace.',
-    ),
-  }),
+    }),
   output: z.object({
     path: z.string().describe('Resolved vault-relative path of the note.'),
     section: SectionSchema.describe('Echoed section locator.'),

@@ -24,7 +24,7 @@
     "build": "bun run scripts/build.ts",
     "rebuild": "bun run scripts/clean.ts && bun run build",
     "clean": "bun run scripts/clean.ts",
-    "devcheck": "bun run scripts/devcheck.ts",
+    "devcheck": "node --experimental-strip-types scripts/devcheck.ts",
     "audit:refresh": "rm -f bun.lock && bun install && bun audit",
     "tree": "bun run scripts/tree.ts",
     "list-skills": "bun run scripts/list-skills.ts",

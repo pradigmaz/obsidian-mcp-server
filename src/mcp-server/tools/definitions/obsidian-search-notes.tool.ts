@@ -10,6 +10,7 @@
 
 import { tool, z } from '@cyanheads/mcp-ts-core';
 import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
+import { getObsidianService } from '@/services/obsidian/obsidian-service.js';
 import {
   CursorSchema,
   OmnisearchHitSchema,
@@ -17,13 +18,10 @@ import {
   TextHitSchema,
 } from './_shared/search-schemas.js';
 import { clipMatches, paginate, safeJsonStringify, truncate } from './_shared/search-utils.js';
-import { getObsidianService } from '@/services/obsidian/obsidian-service.js';
 
 const DEFAULT_MATCHES_PER_HIT = 10;
 /** Omnisearch's hardwired upstream cap — pagination/limit params are ignored. */
 const OMNISEARCH_UPSTREAM_CAP = 50;
-
-
 
 /**
  * Build the `obsidian_search_notes` tool. The `omnisearch` mode is included
@@ -345,5 +343,3 @@ export function buildSearchNotesTool({ omnisearchReachable }: { omnisearchReacha
  * `name-unique`).
  */
 export const obsidianSearchNotes = buildSearchNotesTool({ omnisearchReachable: false });
-
-

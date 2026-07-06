@@ -1,4 +1,4 @@
-import { type Context } from '@cyanheads/mcp-ts-core';
+import type { Context } from '@cyanheads/mcp-ts-core';
 import {
   forbidden,
   internalError,
@@ -13,9 +13,9 @@ import { Agent, type Dispatcher, type RequestInit, fetch as undiciFetch } from '
 import type { ServerConfig } from '@/config/server-config.js';
 import {
   JSONLOGIC_CT,
-  RETRY_SAFE_METHODS,
   parseContentLength,
   parseJsonObject,
+  RETRY_SAFE_METHODS,
 } from '../obsidian-utils.js';
 
 type UndiciResponse = Awaited<ReturnType<typeof undiciFetch>>;
@@ -140,11 +140,12 @@ export class ObsidianHttpClient {
           : urlPath.startsWith('/commands/')
             ? 'command_unknown'
             : 'note_missing';
-      const label = reason === 'no_active_file'
-        ? 'No file is currently active'
-        : reason === 'command_unknown'
-          ? 'Unknown Obsidian command'
-          : 'Obsidian resource not found';
+      const label =
+        reason === 'no_active_file'
+          ? 'No file is currently active'
+          : reason === 'command_unknown'
+            ? 'Unknown Obsidian command'
+            : 'Obsidian resource not found';
       throw notFound(`${label} at ${urlPath}: ${message}`, {
         reason,
         path: urlPath,
@@ -155,22 +156,34 @@ export class ObsidianHttpClient {
       if (/content-already-preexists-in-target/i.test(message)) {
         throw validationError(
           `The supplied content already appears at the target in ${urlPath}. Pass \`applyIfContentPreexists: true\` to force-apply, or change the content.`,
-          { reason: 'content_preexists', path: urlPath, ...(message ? { upstream: { message } } : {}) }
+          {
+            reason: 'content_preexists',
+            path: urlPath,
+            ...(message ? { upstream: { message } } : {}),
+          },
         );
       }
       if (/could not be applied/i.test(message)) {
         throw validationError(
           `Section target not found in ${urlPath}. The target section might not exist, or the file changed between read and write.`,
-          { reason: 'section_target_missing', path: urlPath, ...(message ? { upstream: { message } } : {}) }
+          {
+            reason: 'section_target_missing',
+            path: urlPath,
+            ...(message ? { upstream: { message } } : {}),
+          },
         );
       }
       if (isSearchLog) {
         throw validationError(`Invalid JsonLogic query: ${message}`, {
-          reason: 'invalid_query', path: urlPath, ...(message ? { upstream: { message } } : {})
+          reason: 'invalid_query',
+          path: urlPath,
+          ...(message ? { upstream: { message } } : {}),
         });
       }
       throw validationError(message || `Bad request to ${urlPath}`, {
-        reason: 'validation_error', path: urlPath, ...(message ? { upstream: { message } } : {})
+        reason: 'validation_error',
+        path: urlPath,
+        ...(message ? { upstream: { message } } : {}),
       });
     }
 
@@ -180,11 +193,14 @@ export class ObsidianHttpClient {
           `PATCH is not supported for ${urlPath}. The note likely does not exist yet (PATCH cannot create files in the Local REST API).`,
         );
       }
-      throw validationError(`Obsidian Local REST API rejected ${method} for ${urlPath}: ${message}`, {
-        reason: 'path_is_directory',
-        path: urlPath,
-        ...(message ? { upstream: { message } } : {}),
-      });
+      throw validationError(
+        `Obsidian Local REST API rejected ${method} for ${urlPath}: ${message}`,
+        {
+          reason: 'path_is_directory',
+          path: urlPath,
+          ...(message ? { upstream: { message } } : {}),
+        },
+      );
     }
 
     if (res.status === 503) {
@@ -208,7 +224,11 @@ export class ObsidianHttpClient {
       });
     }
 
-    const truncated = bodyStr ? (bodyStr.length > 500 ? `${bodyStr.slice(0, 500)}…` : bodyStr) : undefined;
+    const truncated = bodyStr
+      ? bodyStr.length > 500
+        ? `${bodyStr.slice(0, 500)}…`
+        : bodyStr
+      : undefined;
     throw await httpErrorFromResponse(res as unknown as Response, {
       service: 'Obsidian Local REST API',
       captureBody: false,

@@ -26,16 +26,17 @@ import { obsidianWriteNote } from './obsidian-write-note.tool.js';
 
 export { buildSearchNotesTool } from './obsidian-search-notes.tool.js';
 
-import { obsidianKnowledgeStatus } from './obsidian-knowledge-status.tool.js';
-import { obsidianKnowledgeHealthReport } from './obsidian-knowledge-health-report.tool.js';
-import { obsidianKnowledgeSmartSearch } from './obsidian-knowledge-smart-search.tool.js';
-import { obsidianKnowledgeWorkspaceBrief } from './obsidian-knowledge-workspace-brief.tool.js';
 import { obsidianKnowledgeAgentBootstrap } from './obsidian-knowledge-agent-bootstrap.tool.js';
-import { obsidianKnowledgeSignalMemoryTool } from './obsidian-knowledge-signal-memory.tool.js';
+import { obsidianKnowledgeConceptCluster } from './obsidian-knowledge-concept-cluster.tool.js';
+import { obsidianKnowledgeHealthReport } from './obsidian-knowledge-health-report.tool.js';
+import { obsidianKnowledgeInvestigateConstraint } from './obsidian-knowledge-investigate-constraint.tool.js';
+import { obsidianKnowledgeJanitorScan } from './obsidian-knowledge-janitor-scan.tool.js';
 import { obsidianKnowledgeQueryBenchmark } from './obsidian-knowledge-query-benchmark.tool.js';
 import { obsidianKnowledgeRouteTrace } from './obsidian-knowledge-route-trace.tool.js';
-import { obsidianKnowledgeConceptCluster } from './obsidian-knowledge-concept-cluster.tool.js';
-import { obsidianKnowledgeJanitorScan } from './obsidian-knowledge-janitor-scan.tool.js';
+import { obsidianKnowledgeSignalMemoryTool } from './obsidian-knowledge-signal-memory.tool.js';
+import { obsidianKnowledgeSmartSearch } from './obsidian-knowledge-smart-search.tool.js';
+import { obsidianKnowledgeStatus } from './obsidian-knowledge-status.tool.js';
+import { obsidianKnowledgeWorkspaceBrief } from './obsidian-knowledge-workspace-brief.tool.js';
 
 /**
  * Read-only tools that don't depend on runtime probes — always registered,
@@ -58,6 +59,7 @@ export const readToolDefinitions = [
   obsidianKnowledgeRouteTrace,
   obsidianKnowledgeConceptCluster,
   obsidianKnowledgeJanitorScan,
+  obsidianKnowledgeInvestigateConstraint,
   obsidianManageBackups,
 ];
 

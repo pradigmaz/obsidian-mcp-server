@@ -1,5 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { z } from 'zod';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { obsidianKnowledgeAgentBootstrap } from '../../src/mcp-server/tools/definitions/obsidian-knowledge-agent-bootstrap.tool.js';
 
 const mockFetch = vi.fn();
@@ -41,9 +40,14 @@ describe('obsidian_knowledge_agent_bootstrap', () => {
           max_chars: 100,
           max_tokens: 25,
           hits: [{ path: 'test.md', title: 'Test', score: 1.5, excerpt: 'Hello world' }],
-          context: { notes: [{ path: 'test.md', title: 'Test', score: 1.5, excerpt: 'Hello world' }] },
-          provenance: { source: 'knowledge-obsidian-plugin', generated_at: '2026-06-16T00:00:00.000Z' },
-          followups: ['Is this a test?']
+          context: {
+            notes: [{ path: 'test.md', title: 'Test', score: 1.5, excerpt: 'Hello world' }],
+          },
+          provenance: {
+            source: 'knowledge-obsidian-plugin',
+            generated_at: '2026-06-16T00:00:00.000Z',
+          },
+          followups: ['Is this a test?'],
         },
         timings: {
           index_ready_ms: 0,
@@ -52,31 +56,34 @@ describe('obsidian_knowledge_agent_bootstrap', () => {
           context_ms: 0,
           investigation_ms: 0,
           report_ms: 0,
-          total_ms: 3
+          total_ms: 3,
         },
         trimmed_sections: [],
-        suggestedTools: ['tool_a']
-      })
+        suggestedTools: ['tool_a'],
+      }),
     });
 
     const mockCtx = {
       fail: vi.fn(),
-      recoveryFor: vi.fn()
+      recoveryFor: vi.fn(),
     };
 
     const res = await obsidianKnowledgeAgentBootstrap.handler(
       { query: 'test query', limit: 5, budget: 100 },
-      mockCtx as any
+      mockCtx as any,
     );
 
-    expect(mockFetch).toHaveBeenCalledWith('http://127.0.0.1:27125/api/bootstrap', expect.objectContaining({
-      method: 'POST',
-      body: JSON.stringify({ query: 'test query', limit: 5, budget: 100 }),
-      headers: expect.objectContaining({
-        'Content-Type': 'application/json',
-        'X-Schema-Version': '0.1.0'
-      })
-    }));
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:27125/api/bootstrap',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ query: 'test query', limit: 5, budget: 100 }),
+        headers: expect.objectContaining({
+          'Content-Type': 'application/json',
+          'X-Schema-Version': '0.1.0',
+        }),
+      }),
+    );
 
     expect(res.result.brief.filesCount).toStrictEqual(42);
 

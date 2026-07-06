@@ -85,6 +85,47 @@
           "isRequired": false
         },
         {
+          "name": "OBSIDIAN_KNOWLEDGE_URL",
+          "description": "Base URL of the Knowledge Analytics Obsidian plugin HTTP endpoint.",
+          "format": "string",
+          "isRequired": false,
+          "default": "http://127.0.0.1:27125"
+        },
+        {
+          "name": "OBSIDIAN_DEPENDENCY_STARTUP",
+          "description": "Whether MCP startup prepares local dependencies before tools are used.",
+          "format": "string",
+          "isRequired": false,
+          "default": "true"
+        },
+        {
+          "name": "OBSIDIAN_START_OBSIDIAN",
+          "description": "Whether MCP startup quietly launches Obsidian when the Knowledge Analytics endpoint is not ready.",
+          "format": "string",
+          "isRequired": false,
+          "default": "true"
+        },
+        {
+          "name": "OBSIDIAN_EXECUTABLE_PATH",
+          "description": "Optional executable path for background Obsidian startup. On Windows, defaults to LOCALAPPDATA\\Programs\\Obsidian\\Obsidian.exe.",
+          "format": "string",
+          "isRequired": false
+        },
+        {
+          "name": "OBSIDIAN_STARTUP_URI",
+          "description": "URI argument passed to Obsidian during background startup.",
+          "format": "string",
+          "isRequired": false,
+          "default": "obsidian://open"
+        },
+        {
+          "name": "OBSIDIAN_DEPENDENCY_STARTUP_TIMEOUT_MS",
+          "description": "Maximum startup wait for local dependencies, in milliseconds.",
+          "format": "string",
+          "isRequired": false,
+          "default": "30000"
+        },
+        {
           "name": "MCP_LOG_LEVEL",
           "description": "Sets the minimum log level for output (e.g., 'debug', 'info', 'warn').",
           "format": "string",
@@ -171,6 +212,47 @@
           "description": "Override URL for the Omnisearch plugin HTTP server. Unset derives from OBSIDIAN_BASE_URL host with port 51361. Required only if the Omnisearch plugin is not on the default port.",
           "format": "string",
           "isRequired": false
+        },
+        {
+          "name": "OBSIDIAN_KNOWLEDGE_URL",
+          "description": "Base URL of the Knowledge Analytics Obsidian plugin HTTP endpoint.",
+          "format": "string",
+          "isRequired": false,
+          "default": "http://127.0.0.1:27125"
+        },
+        {
+          "name": "OBSIDIAN_DEPENDENCY_STARTUP",
+          "description": "Whether MCP startup prepares local dependencies before tools are used.",
+          "format": "string",
+          "isRequired": false,
+          "default": "true"
+        },
+        {
+          "name": "OBSIDIAN_START_OBSIDIAN",
+          "description": "Whether MCP startup quietly launches Obsidian when the Knowledge Analytics endpoint is not ready.",
+          "format": "string",
+          "isRequired": false,
+          "default": "true"
+        },
+        {
+          "name": "OBSIDIAN_EXECUTABLE_PATH",
+          "description": "Optional executable path for background Obsidian startup. On Windows, defaults to LOCALAPPDATA\\Programs\\Obsidian\\Obsidian.exe.",
+          "format": "string",
+          "isRequired": false
+        },
+        {
+          "name": "OBSIDIAN_STARTUP_URI",
+          "description": "URI argument passed to Obsidian during background startup.",
+          "format": "string",
+          "isRequired": false,
+          "default": "obsidian://open"
+        },
+        {
+          "name": "OBSIDIAN_DEPENDENCY_STARTUP_TIMEOUT_MS",
+          "description": "Maximum startup wait for local dependencies, in milliseconds.",
+          "format": "string",
+          "isRequired": false,
+          "default": "30000"
         },
         {
           "name": "MCP_HTTP_HOST",

@@ -21,9 +21,11 @@ import {
 } from '@/mcp-server/tools/definitions/index.js';
 import { getObsidianService, initObsidianService } from '@/services/obsidian/obsidian-service.js';
 import { PathPolicy } from '@/services/obsidian/path-policy.js';
+import { initializeStartupDependencies } from '@/startup/dependency-startup.js';
 
 const config = getServerConfig();
 const policy = new PathPolicy(config);
+const startupDependencies = await initializeStartupDependencies(config);
 
 /**
  * Init the service at module load (rather than inside `setup()`) so the
@@ -119,6 +121,7 @@ const bannerCtx = requestContextService.createRequestContext({
   enableCommands: config.enableCommands && !config.readOnly,
   omnisearchUrl: obsidian.omnisearchUrl,
   omnisearchReachable,
+  startupDependencies,
 });
 services.logger.info('Path policy', bannerCtx);
 services.logger.info(

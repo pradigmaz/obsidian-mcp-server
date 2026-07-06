@@ -1,4 +1,4 @@
-import { type Context } from '@cyanheads/mcp-ts-core';
+import type { Context } from '@cyanheads/mcp-ts-core';
 import type { RequestContext } from '@cyanheads/mcp-ts-core/utils';
 import { paginateArray } from '@cyanheads/mcp-ts-core/utils';
 

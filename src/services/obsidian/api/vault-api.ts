@@ -1,8 +1,8 @@
 import type { Context } from '@cyanheads/mcp-ts-core';
 import type { ObsidianHttpClient } from '../core/http-client.js';
+import { encodeVaultPath } from '../obsidian-utils.js';
 import type { PathPolicy } from '../path-policy.js';
 import type { FileListing, ObsidianCommand, ObsidianTag, VaultStatus } from '../types.js';
-import { encodeVaultPath } from '../obsidian-utils.js';
 
 interface RawFileListing {
   files: string[];
@@ -70,7 +70,9 @@ export class VaultApi {
   }
 
   async executeCommand(ctx: Context, commandId: string): Promise<void> {
-    await this.#http.request(ctx, `/commands/${encodeURIComponent(commandId)}/`, { method: 'POST' });
+    await this.#http.request(ctx, `/commands/${encodeURIComponent(commandId)}/`, {
+      method: 'POST',
+    });
   }
 
   async openInUi(ctx: Context, path: string, opts?: { newLeaf?: boolean }): Promise<void> {

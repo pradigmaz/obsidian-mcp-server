@@ -148,7 +148,7 @@ describe('obsidian_write_note (whole file)', () => {
     pool.intercept({ path: '/vault/Note.md', method: 'PUT' }).reply(200, '');
     pool.intercept({ path: '/vault/Note.md', method: 'HEAD' }).reply(200, '', cl(100));
 
-    const hugeBody = '---\n' + 'a'.repeat(5 * 1024 * 1024);
+    const hugeBody = `---\n${'a'.repeat(5 * 1024 * 1024)}`;
 
     const start = performance.now();
     await obsidianWriteNote.handler(

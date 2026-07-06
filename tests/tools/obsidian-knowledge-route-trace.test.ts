@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { obsidianKnowledgeRouteTrace } from '../../src/mcp-server/tools/definitions/obsidian-knowledge-route-trace.tool.js';
 
 const mockFetch = vi.fn();
@@ -22,21 +22,27 @@ describe('obsidian_knowledge_route_trace', () => {
         source: 'A.md',
         target: 'B.md',
         path: ['A.md', 'B.md'],
-        distance: 1
-      })
+        distance: 1,
+      }),
     });
 
     const mockCtx = {
       fail: vi.fn(),
-      recoveryFor: vi.fn()
+      recoveryFor: vi.fn(),
     };
 
-    const res = await obsidianKnowledgeRouteTrace.handler({ source: 'A', target: 'B' }, mockCtx as any);
+    const res = await obsidianKnowledgeRouteTrace.handler(
+      { source: 'A', target: 'B' },
+      mockCtx as any,
+    );
 
-    expect(mockFetch).toHaveBeenCalledWith('http://127.0.0.1:27125/api/route-trace', expect.objectContaining({
-      method: 'POST',
-      body: JSON.stringify({ source: 'A', target: 'B' })
-    }));
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:27125/api/route-trace',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ source: 'A', target: 'B' }),
+      }),
+    );
 
     expect(res.result.path).toHaveLength(2);
 

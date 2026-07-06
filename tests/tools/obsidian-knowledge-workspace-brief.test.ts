@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { obsidianKnowledgeWorkspaceBrief } from '../../src/mcp-server/tools/definitions/obsidian-knowledge-workspace-brief.tool.js';
 
 const mockFetch = vi.fn();
@@ -27,9 +27,18 @@ describe('obsidian_knowledge_workspace_brief', () => {
         vaultName: 'TestVault',
         filesCount: 100,
         attachmentCount: 50,
+        scopePreview: {
+          includedFolders: ['/', 'Projects'],
+          excludedFolders: ['.obsidian', 'node_modules'],
+          noteCount: 100,
+          attachmentCount: 50,
+          ignoredPatterns: ['.obsidian', 'node_modules'],
+          estimatedProcessingBytes: 12345,
+        },
         linksCount: 200,
         unresolvedLinksCount: 10,
         isolatedNotes: 5,
+        backlinkHubs: [{ path: 'hub.md', backlinks: 12 }],
         topFolders: [{ folder: '/', count: 50 }],
         topTags: [{ tag: '#test', count: 5 }],
         commonProperties: [{ property: 'status', count: 80 }],
@@ -37,20 +46,24 @@ describe('obsidian_knowledge_workspace_brief', () => {
         recentNotes: ['recent.md'],
         staleHighCentralityNotes: ['old_hub.md'],
         entryPoints: [{ path: 'hub.md', score: 10 }],
-        projectNotes: ['project.md']
-      })
+        projectNotes: ['project.md'],
+        ignoredPaths: ['.obsidian', 'node_modules'],
+      }),
     });
 
     const mockCtx = {
       fail: vi.fn(),
-      recoveryFor: vi.fn()
+      recoveryFor: vi.fn(),
     };
 
     const res = await obsidianKnowledgeWorkspaceBrief.handler({}, mockCtx as any);
 
-    expect(mockFetch).toHaveBeenCalledWith('http://127.0.0.1:27125/api/brief', expect.objectContaining({
-      method: 'GET',
-    }));
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:27125/api/brief',
+      expect.objectContaining({
+        method: 'GET',
+      }),
+    );
 
     expect(res.result.filesCount).toBe(100);
 
@@ -58,6 +71,10 @@ describe('obsidian_knowledge_workspace_brief', () => {
     expect(formatted).toHaveLength(1);
     expect(formatted[0].text).toContain('- Vault: TestVault');
     expect(formatted[0].text).toContain('- Markdown notes: 100');
+    expect(formatted[0].text).toContain('- Scope notes: 100');
+    expect(formatted[0].text).toContain('- Scope size estimate: 12345 bytes');
+    expect(formatted[0].text).toContain('- Backlink hubs:');
+    expect(formatted[0].text).toContain('  - hub.md: 12');
     expect(formatted[0].text).toContain('- /: 50');
     expect(formatted[0].text).toContain('- #test: 5');
     expect(formatted[0].text).toContain('- status: 80');
@@ -65,5 +82,10 @@ describe('obsidian_knowledge_workspace_brief', () => {
     expect(formatted[0].text).toContain('- old_hub.md');
     expect(formatted[0].text).toContain('- hub.md (10)');
     expect(formatted[0].text).toContain('- project.md');
+  });
+
+  it('rejects unknown input before request', () => {
+    expect(() => obsidianKnowledgeWorkspaceBrief.input.parse({ selector: 'bad' })).toThrow();
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 });

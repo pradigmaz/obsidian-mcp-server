@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { obsidianKnowledgeConceptCluster } from '../../src/mcp-server/tools/definitions/obsidian-knowledge-concept-cluster.tool.js';
 
 const mockFetch = vi.fn();
@@ -21,21 +21,24 @@ describe('obsidian_knowledge_concept_cluster', () => {
       json: async () => ({
         concept: 'AI',
         cluster: ['AI.md', 'Agents.md'],
-        relatedConcepts: ['LLM', 'Prompting']
-      })
+        relatedConcepts: ['LLM', 'Prompting'],
+      }),
     });
 
     const mockCtx = {
       fail: vi.fn(),
-      recoveryFor: vi.fn()
+      recoveryFor: vi.fn(),
     };
 
     const res = await obsidianKnowledgeConceptCluster.handler({ concept: 'AI' }, mockCtx as any);
 
-    expect(mockFetch).toHaveBeenCalledWith('http://127.0.0.1:27125/api/concept-cluster', expect.objectContaining({
-      method: 'POST',
-      body: JSON.stringify({ concept: 'AI' })
-    }));
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:27125/api/concept-cluster',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ concept: 'AI' }),
+      }),
+    );
 
     expect(res.result.cluster).toHaveLength(2);
 

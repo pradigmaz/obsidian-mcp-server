@@ -1,8 +1,11 @@
-import type { Context } from '@cyanheads/mcp-ts-core';
+import type { ContentBlock, Context } from '@cyanheads/mcp-ts-core';
 import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
 import { getServerConfig } from '@/config/server-config.js';
 
-type KnowledgeErrorReason = 'knowledge_unreachable' | 'knowledge_bad_response' | 'knowledge_gatekeeper_blocked';
+type KnowledgeErrorReason =
+  | 'knowledge_unreachable'
+  | 'knowledge_bad_response'
+  | 'knowledge_gatekeeper_blocked';
 type KnowledgeToolContext = Context & {
   fail: (
     reason: KnowledgeErrorReason,
@@ -16,9 +19,9 @@ type KnowledgeToolContext = Context & {
 interface KnowledgeRequest {
   body?: unknown;
   ctx: KnowledgeToolContext;
+  headers?: Record<string, string>;
   method?: 'GET' | 'POST';
   path: string;
-  headers?: Record<string, string>;
 }
 
 const KNOWLEDGE_ERRORS = [
@@ -42,12 +45,15 @@ const KNOWLEDGE_ERRORS = [
     code: JsonRpcErrorCode.InvalidParams,
     when: 'The Knowledge Analytics Gatekeeper blocked the request due to failing OKF health checks.',
     retryable: true,
-    recovery: 'Run obsidian_knowledge_health_report and fix the reported issues manually before proceeding.',
+    recovery:
+      'Run obsidian_knowledge_health_report and fix the reported issues manually before proceeding.',
   },
 ] as const;
 
 export const knowledgeToolErrors = KNOWLEDGE_ERRORS;
 const CLIENT_SCHEMA_VERSION = '0.1.0';
+
+type KnowledgeInputSchema = z.ZodObject<z.ZodRawShape>;
 
 export async function requestKnowledgeJson<T>({
   body,
@@ -60,10 +66,10 @@ export async function requestKnowledgeJson<T>({
   let res: Response;
 
   try {
-    const init: RequestInit = { 
+    const init: RequestInit = {
       method,
       headers: { 'X-Schema-Version': CLIENT_SCHEMA_VERSION, ...headers },
-      signal: AbortSignal.timeout(10000)
+      signal: AbortSignal.timeout(10000),
     };
     if (body !== undefined) {
       init.headers = { ...init.headers, 'Content-Type': 'application/json' };
@@ -89,11 +95,21 @@ export async function requestKnowledgeJson<T>({
   }
 
   const schemaHeader = res.headers?.get?.('x-schema-version');
-  if (schemaHeader !== undefined && schemaHeader !== null && schemaHeader !== CLIENT_SCHEMA_VERSION) {
+  if (
+    schemaHeader !== undefined &&
+    schemaHeader !== null &&
+    schemaHeader !== CLIENT_SCHEMA_VERSION
+  ) {
     throw ctx.fail(
       'knowledge_bad_response',
       `Knowledge Analytics schema mismatch. Expected ${CLIENT_SCHEMA_VERSION}, got ${schemaHeader}.`,
-      { status: res.status, path, expectedSchemaVersion: CLIENT_SCHEMA_VERSION, schemaVersion: schemaHeader, ...ctx.recoveryFor('knowledge_bad_response') },
+      {
+        status: res.status,
+        path,
+        expectedSchemaVersion: CLIENT_SCHEMA_VERSION,
+        schemaVersion: schemaHeader,
+        ...ctx.recoveryFor('knowledge_bad_response'),
+      },
     );
   }
 
@@ -140,7 +156,7 @@ const SENSITIVE_PATTERNS = [
   /mfa\.[a-z0-9_-]{20,}/g, // Discord MFA
   /[sr]k_(live|test)_[0-9a-zA-Z]{24}/g, // Stripe Keys
   /(?:vk|vkontakte|access_token)[\s_a-z]*['"]?\s*[:=]\s*['"]?([a-zA-Z0-9]{32,85})['"]?/gi, // VK API tokens
-  /(?:password|passwd|pwd|secret|token|api_key)['"]?\s*[:=]\s*['"]?([^\s'"&;]+)['"]?/gi // Generic credentials
+  /(?:password|passwd|pwd|secret|token|api_key)['"]?\s*[:=]\s*['"]?([^\s'"&;]+)['"]?/gi, // Generic credentials
 ];
 
 function redactSensitiveData(text: string): string {
@@ -151,18 +167,18 @@ function redactSensitiveData(text: string): string {
   return redacted;
 }
 
-const MAX_OUTPUT_LENGTH = process.env.OBSIDIAN_KNOWLEDGE_BUDGET 
-  ? parseInt(process.env.OBSIDIAN_KNOWLEDGE_BUDGET, 10) 
+const MAX_OUTPUT_LENGTH = process.env.OBSIDIAN_KNOWLEDGE_BUDGET
+  ? parseInt(process.env.OBSIDIAN_KNOWLEDGE_BUDGET, 10)
   : 15000;
 
 function enforceBudget(text: string): string {
   if (text.length > MAX_OUTPUT_LENGTH) {
-    return text.substring(0, MAX_OUTPUT_LENGTH) + '\n\n...[Truncated for Context Under Budget]';
+    return `${text.substring(0, MAX_OUTPUT_LENGTH)}\n\n...[Truncated for Context Under Budget]`;
   }
   return text;
 }
 
-export function createKnowledgeProxyTool<TInput extends z.ZodObject<any, any>, TResult>(opts: {
+export function createKnowledgeProxyTool<TInput extends KnowledgeInputSchema, TResult>(opts: {
   name: string;
   description: string;
   input: TInput;
@@ -171,13 +187,13 @@ export function createKnowledgeProxyTool<TInput extends z.ZodObject<any, any>, T
   method?: 'GET' | 'POST' | ((input: z.infer<TInput>) => 'GET' | 'POST');
   authWrite?: boolean;
   gatekeeper?: { requireHealth: boolean };
-  format: (params: { result: TResult; input?: z.infer<TInput> }) => any[];
+  format: (params: { result: TResult; input?: z.infer<TInput> }) => ContentBlock[];
 }) {
   return tool(opts.name, {
     description: opts.description,
-    annotations: { 
-      readOnlyHint: !opts.authWrite, 
-      idempotentHint: !opts.authWrite 
+    annotations: {
+      readOnlyHint: !opts.authWrite,
+      idempotentHint: !opts.authWrite,
     },
     input: opts.input,
     output: z.object({ result: opts.output }),
@@ -187,7 +203,7 @@ export function createKnowledgeProxyTool<TInput extends z.ZodObject<any, any>, T
       const input = rawInput as z.infer<TInput>;
       const p = typeof opts.path === 'function' ? opts.path(input) : opts.path;
       const m = typeof opts.method === 'function' ? opts.method(input) : (opts.method ?? 'POST');
-      
+
       const result = await requestKnowledgeJson<TResult>({
         ctx,
         path: p,
@@ -199,15 +215,15 @@ export function createKnowledgeProxyTool<TInput extends z.ZodObject<any, any>, T
     },
     format: (data: { result: TResult }) => {
       const formatted = opts.format({ result: data.result });
-      return formatted.map((part: any) => {
+      return formatted.map((part) => {
         if (part.type === 'text' && typeof part.text === 'string') {
           return {
             ...part,
-            text: redactSensitiveData(enforceBudget(part.text))
+            text: redactSensitiveData(enforceBudget(part.text)),
           };
         }
         return part;
-      }) as any;
+      });
     },
   });
 }

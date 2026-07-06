@@ -14,25 +14,28 @@ export const obsidianWriteNote = tool('obsidian_write_note', {
   description:
     'Create or overwrite a note. With `section`, replaces just that heading/block/frontmatter section in place; nested headings need `Parent::Child` syntax — use `obsidian_get_note` with `format: "document-map"` to discover available targets. Whole-file writes fail with `file_exists` against an existing note unless `overwrite: true` — for in-place edits, prefer `obsidian_patch_note` (sections), `obsidian_append_to_note` (append), or `obsidian_replace_in_note` (find-and-replace). For heading sections, `content` is the new body; the heading line is preserved automatically.',
   annotations: { idempotentHint: true, destructiveHint: true },
-  input: z.object({
-    target: TargetSchema.describe('Where the note lives.'),
-  }).merge(OkfFrontmatterSchema).extend({
-    content: z
-      .string()
-      .describe(
-        'Body to write. For heading sections, the new section body — do not repeat the heading line (it stays in place). Markdown unless `contentType` is `json`.',
+  input: z
+    .object({
+      target: TargetSchema.describe('Where the note lives.'),
+    })
+    .merge(OkfFrontmatterSchema)
+    .extend({
+      content: z
+        .string()
+        .describe(
+          'Body to write. For heading sections, the new section body — do not repeat the heading line (it stays in place). Markdown unless `contentType` is `json`.',
+        ),
+      section: SectionSchema.optional().describe(
+        'Optional sub-document target. When set, only this section is replaced; rest of the note is untouched.',
       ),
-    section: SectionSchema.optional().describe(
-      'Optional sub-document target. When set, only this section is replaced; rest of the note is untouched.',
-    ),
-    contentType: ContentTypeSchema,
-    overwrite: z
-      .boolean()
-      .default(false)
-      .describe(
-        'Whole-file mode only (ignored when `section` is set). When `false` (default), the call fails with `file_exists` if the target note already exists — read it first and use `obsidian_patch_note` / `obsidian_append_to_note` / `obsidian_replace_in_note` for in-place edits, or retry with `overwrite: true` for a deliberate full replacement.',
-      ),
-  }),
+      contentType: ContentTypeSchema,
+      overwrite: z
+        .boolean()
+        .default(false)
+        .describe(
+          'Whole-file mode only (ignored when `section` is set). When `false` (default), the call fails with `file_exists` if the target note already exists — read it first and use `obsidian_patch_note` / `obsidian_append_to_note` / `obsidian_replace_in_note` for in-place edits, or retry with `overwrite: true` for a deliberate full replacement.',
+        ),
+    }),
   output: z.object({
     path: z.string().describe('Resolved vault-relative path of the note that was written.'),
     sectionTargeted: z

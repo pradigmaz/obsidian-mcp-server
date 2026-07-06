@@ -1,17 +1,17 @@
+import * as fs from 'node:fs/promises';
 import type { Context } from '@cyanheads/mcp-ts-core';
 import { notFound, validationError } from '@cyanheads/mcp-ts-core/errors';
 import type { ObsidianHttpClient } from '../core/http-client.js';
-import type { PathPolicy } from '../path-policy.js';
 import type { BackupManager } from '../gatekeeper/backup-manager.js';
 import type { LintClient } from '../gatekeeper/lint-client.js';
-import type {
-  DocumentMap,
-  NoteJson,
-  NoteTarget,
-  PatchHeaders,
-} from '../types.js';
-import { NOTE_JSON_ACCEPT, DOCUMENT_MAP_ACCEPT, encodeVaultPath, parseContentLength } from '../obsidian-utils.js';
-import * as fs from 'fs/promises';
+import {
+  DOCUMENT_MAP_ACCEPT,
+  encodeVaultPath,
+  NOTE_JSON_ACCEPT,
+  parseContentLength,
+} from '../obsidian-utils.js';
+import type { PathPolicy } from '../path-policy.js';
+import type { DocumentMap, NoteJson, NoteTarget, PatchHeaders } from '../types.js';
 
 export class NoteApi {
   readonly #http: ObsidianHttpClient;
@@ -23,7 +23,7 @@ export class NoteApi {
     http: ObsidianHttpClient,
     policy: PathPolicy,
     backup: BackupManager,
-    lint: LintClient
+    lint: LintClient,
   ) {
     this.#http = http;
     this.#policy = policy;
@@ -93,7 +93,7 @@ export class NoteApi {
   ): Promise<void> {
     const safe = await this.#gateAsWrite(ctx, target);
     const url = this.#targetToPath(safe);
-    
+
     await this.#lint.lintWrite(ctx, url, content);
     await this.#backupExisting(ctx, url);
 
@@ -112,7 +112,7 @@ export class NoteApi {
   ): Promise<void> {
     const safe = await this.#gateAsWrite(ctx, target);
     const url = this.#targetToPath(safe);
-    
+
     const backupPath = await this.#backupExisting(ctx, url);
 
     await this.#http.request(ctx, url, {
@@ -120,17 +120,19 @@ export class NoteApi {
       headers: { 'Content-Type': contentType === 'json' ? 'application/json' : 'text/markdown' },
       body: content,
     });
-    
+
     try {
       await this.#lint.lintWrite(ctx, url);
     } catch (e) {
       if (backupPath) {
         const originalContent = await fs.readFile(backupPath, 'utf8');
-        await this.#http.request(ctx, url, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'text/markdown' },
-          body: originalContent,
-        }).catch(() => {});
+        await this.#http
+          .request(ctx, url, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'text/markdown' },
+            body: originalContent,
+          })
+          .catch(() => {});
       }
       throw e;
     }
@@ -144,7 +146,7 @@ export class NoteApi {
   ): Promise<void> {
     const safe = await this.#gateAsWrite(ctx, target);
     const url = this.#targetToPath(safe);
-    
+
     const backupPath = await this.#backupExisting(ctx, url);
 
     await this.#http.request(ctx, url, {
@@ -152,17 +154,19 @@ export class NoteApi {
       headers: this.#buildPatchHeaders(headers),
       body: content,
     });
-    
+
     try {
       await this.#lint.lintWrite(ctx, url);
     } catch (e) {
       if (backupPath) {
         const originalContent = await fs.readFile(backupPath, 'utf8');
-        await this.#http.request(ctx, url, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'text/markdown' },
-          body: originalContent,
-        }).catch(() => {});
+        await this.#http
+          .request(ctx, url, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'text/markdown' },
+            body: originalContent,
+          })
+          .catch(() => {});
       }
       throw e;
     }
@@ -187,7 +191,7 @@ export class NoteApi {
     });
     if (res.status === 404) return null;
     if (!res.ok) await this.#http.throwForStatus(res, 'HEAD', url);
-    
+
     return parseContentLength(res, url);
   }
 
@@ -259,8 +263,8 @@ export class NoteApi {
   #buildPatchHeaders(headers: PatchHeaders): Record<string, string> {
     const out: Record<string, string> = {
       'Content-Type': headers.contentType === 'json' ? 'application/json' : 'text/markdown',
-      'Operation': headers.operation,
-      'Target': encodeURIComponent(headers.target),
+      Operation: headers.operation,
+      Target: encodeURIComponent(headers.target),
       'Target-Type': headers.targetType,
     };
     if (headers.targetDelimiter) out['Target-Delimiter'] = headers.targetDelimiter;
@@ -282,7 +286,7 @@ export class NoteApi {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${this.#http.config.apiKey}`,
-        Accept: 'text/markdown'
+        Accept: 'text/markdown',
       },
       dispatcher: this.#http.dispatcher,
       signal: ctx.signal,
