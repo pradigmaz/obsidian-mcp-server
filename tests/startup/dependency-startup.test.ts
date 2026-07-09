@@ -19,6 +19,7 @@ function config(overrides: Partial<ServerConfig> = {}): ServerConfig {
     dependencyStartupEnabled: true,
     obsidianStartupEnabled: true,
     obsidianExecutablePath: undefined,
+    obsidianVaultPath: undefined,
     obsidianStartupUri: 'obsidian://open',
     dependencyStartupTimeoutMs: 1000,
     maxBackupsPerNote: 10,
@@ -77,6 +78,48 @@ describe('initializeStartupDependencies', () => {
       { name: 'database', state: 'none' },
       { name: 'obsidian', state: 'started' },
     ]);
+  });
+
+  it('derives the Obsidian startup vault from OBSIDIAN_VAULT_PATH when URI is default', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('down'))
+      .mockResolvedValue(response({ 'x-knowledge-plugin': '1', 'x-schema-version': '0.1.0' }));
+    const launch = vi.fn().mockResolvedValue(undefined);
+
+    await initializeStartupDependencies(config({ obsidianVaultPath: 'E:\\obs_bd' }), {
+      fetch: fetchMock,
+      launch,
+      now: () => 0,
+      resolveObsidianPath: () => 'Obsidian.exe',
+      sleep: vi.fn(),
+    });
+
+    expect(launch).toHaveBeenCalledWith('Obsidian.exe', ['obsidian://open?vault=obs_bd']);
+  });
+
+  it('keeps explicit OBSIDIAN_STARTUP_URI ahead of OBSIDIAN_VAULT_PATH', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('down'))
+      .mockResolvedValue(response({ 'x-knowledge-plugin': '1', 'x-schema-version': '0.1.0' }));
+    const launch = vi.fn().mockResolvedValue(undefined);
+
+    await initializeStartupDependencies(
+      config({
+        obsidianStartupUri: 'obsidian://open?vault=manual',
+        obsidianVaultPath: 'E:\\obs_bd',
+      }),
+      {
+        fetch: fetchMock,
+        launch,
+        now: () => 0,
+        resolveObsidianPath: () => 'Obsidian.exe',
+        sleep: vi.fn(),
+      },
+    );
+
+    expect(launch).toHaveBeenCalledWith('Obsidian.exe', ['obsidian://open?vault=manual']);
   });
 
   it('reports blocked instead of launching when Obsidian startup is disabled', async () => {

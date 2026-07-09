@@ -179,6 +179,15 @@ const ServerConfigSchema = z.object({
         'Optional executable path for background Obsidian startup. On Windows, defaults to LOCALAPPDATA\\Programs\\Obsidian\\Obsidian.exe.',
       ),
   ),
+  obsidianVaultPath: z.preprocess(
+    (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
+    z
+      .string()
+      .optional()
+      .describe(
+        'Optional absolute Obsidian vault path. Used to derive an obsidian://open?vault=... startup URI when OBSIDIAN_STARTUP_URI is not customized.',
+      ),
+  ),
   obsidianStartupUri: z.preprocess(
     (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
     z
@@ -230,6 +239,7 @@ export function getServerConfig(): ServerConfig {
     dependencyStartupEnabled: 'OBSIDIAN_DEPENDENCY_STARTUP',
     obsidianStartupEnabled: 'OBSIDIAN_START_OBSIDIAN',
     obsidianExecutablePath: 'OBSIDIAN_EXECUTABLE_PATH',
+    obsidianVaultPath: 'OBSIDIAN_VAULT_PATH',
     obsidianStartupUri: 'OBSIDIAN_STARTUP_URI',
     dependencyStartupTimeoutMs: 'OBSIDIAN_DEPENDENCY_STARTUP_TIMEOUT_MS',
     maxBackupsPerNote: 'OBSIDIAN_MAX_BACKUPS_PER_NOTE',

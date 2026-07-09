@@ -23,6 +23,7 @@ const ENV_KEYS = [
   'OBSIDIAN_DEPENDENCY_STARTUP',
   'OBSIDIAN_START_OBSIDIAN',
   'OBSIDIAN_EXECUTABLE_PATH',
+  'OBSIDIAN_VAULT_PATH',
   'OBSIDIAN_STARTUP_URI',
   'OBSIDIAN_DEPENDENCY_STARTUP_TIMEOUT_MS',
 ] as const;
@@ -57,6 +58,7 @@ describe('getServerConfig', () => {
       dependencyStartupEnabled: true,
       obsidianStartupEnabled: true,
       obsidianStartupUri: 'obsidian://open',
+      obsidianVaultPath: undefined,
       dependencyStartupTimeoutMs: 30_000,
     });
   });
@@ -112,6 +114,7 @@ describe('getServerConfig', () => {
     vi.stubEnv('OBSIDIAN_DEPENDENCY_STARTUP', 'false');
     vi.stubEnv('OBSIDIAN_START_OBSIDIAN', 'off');
     vi.stubEnv('OBSIDIAN_EXECUTABLE_PATH', 'C:\\Tools\\Obsidian\\Obsidian.exe');
+    vi.stubEnv('OBSIDIAN_VAULT_PATH', 'E:\\obs_bd');
     vi.stubEnv('OBSIDIAN_STARTUP_URI', 'obsidian://open?vault=obs_bd');
     vi.stubEnv('OBSIDIAN_DEPENDENCY_STARTUP_TIMEOUT_MS', '1234');
     expect(getServerConfig()).toMatchObject({
@@ -119,6 +122,7 @@ describe('getServerConfig', () => {
       dependencyStartupEnabled: false,
       obsidianStartupEnabled: false,
       obsidianExecutablePath: 'C:\\Tools\\Obsidian\\Obsidian.exe',
+      obsidianVaultPath: 'E:\\obs_bd',
       obsidianStartupUri: 'obsidian://open?vault=obs_bd',
       dependencyStartupTimeoutMs: 1234,
     });
