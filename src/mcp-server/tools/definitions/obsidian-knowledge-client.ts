@@ -200,7 +200,7 @@ export function createKnowledgeProxyTool<TInput extends KnowledgeInputSchema, TR
       idempotentHint: !opts.authWrite,
     },
     input: opts.input,
-    output: z.object({ result: opts.output }),
+    output: z.object({ result: opts.output.describe('Knowledge plugin response payload.') }),
     auth: [`tool:${opts.name}:${opts.authWrite ? 'write' : 'read'}`],
     errors: knowledgeToolErrors,
     async handler(rawInput, ctx) {

@@ -272,6 +272,9 @@ export const obsidianKnowledgeQueryBenchmark = createKnowledgeProxyTool({
       lines.push(`  - Avg Est. Tokens: ${testCase.avg_estimated_tokens.toFixed(0)}`);
       lines.push(`  - Latency: ${testCase.latency_ms} ms`);
       lines.push(`  - Latency P50/P95: ${testCase.latency_p50_ms}/${testCase.latency_p95_ms} ms`);
+      if (testCase.error) {
+        lines.push(`  - Error: ${testCase.error}`);
+      }
       if (testCase.missingPaths.length > 0) {
         lines.push(`  - Missing expected notes in Top-K:`);
         for (const missing of testCase.missingPaths) {

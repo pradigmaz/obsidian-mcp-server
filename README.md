@@ -111,10 +111,13 @@ If you only need general Obsidian MCP access, use the original upstream server. 
 ### 1. Codex
 If you are using Codex, add the following to your `~/.codex/config.toml` (or project `.codex/config.toml`):
 
+> This fork is not currently published to npm. Clone it first, run `bun install && bun run build`,
+> then point the client at your local checkout.
+
 ```toml
 [mcp_servers.obsidian-knowledge-mcp]
-command = "bunx"
-args = ["obsidian-knowledge-mcp@latest"]
+command = "bun"
+args = ["--cwd", "/absolute/path/to/knowledge-mcp-server", "run", "start:stdio"]
 env = { OBSIDIAN_API_KEY = "your-local-rest-api-key", OBSIDIAN_KNOWLEDGE_URL = "http://127.0.0.1:27125" }
 ```
 
@@ -126,8 +129,8 @@ For most standard MCP environments (Antigravity, Claude Desktop, IDEs), use the 
   "mcpServers": {
     "obsidian-knowledge-mcp": {
       "type": "stdio",
-      "command": "bunx",
-      "args": ["obsidian-knowledge-mcp@latest"],
+      "command": "bun",
+      "args": ["--cwd", "/absolute/path/to/knowledge-mcp-server", "run", "start:stdio"],
       "env": {
         "OBSIDIAN_API_KEY": "your-local-rest-api-key",
         "OBSIDIAN_KNOWLEDGE_URL": "http://127.0.0.1:27125"

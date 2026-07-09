@@ -51,7 +51,8 @@ export const obsidianKnowledgeWritePreflight = createKnowledgeProxyTool({
       '',
       'Checks:',
       ...result.checks.map(
-        (check) => `- ${check.status.toUpperCase()} ${check.id}: ${check.message}`,
+        (check) =>
+          `- ${check.status.toUpperCase()} ${check.id}: ${check.message}; status=${check.status}`,
       ),
     ];
     if (result.requiredFixes.length > 0) {

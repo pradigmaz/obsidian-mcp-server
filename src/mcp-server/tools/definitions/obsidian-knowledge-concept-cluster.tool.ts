@@ -122,6 +122,7 @@ export const obsidianKnowledgeConceptCluster = createKnowledgeProxyTool({
       `- Variant count: ${result.cluster_summary?.variant_count ?? cluster.length}`,
       `- Languages: ${result.cluster_summary?.languages?.join(', ') || 'none'}`,
       `- Route kinds: ${result.cluster_summary?.route_kinds?.join(', ') || 'none'}`,
+      `- Cluster summary confidence: ${result.cluster_summary?.confidence ?? 'unknown'}`,
       ...(result.cluster_summary?.top_relation_kinds?.length
         ? [`- Top relation kinds: ${result.cluster_summary.top_relation_kinds.join(', ')}`]
         : []),
@@ -142,7 +143,10 @@ export const obsidianKnowledgeConceptCluster = createKnowledgeProxyTool({
           `- ${member.path}`,
           ...member.evidence
             .slice(0, 3)
-            .map((evidence) => `  - ${evidence.kind}: ${evidence.value}`),
+            .map(
+              (evidence) =>
+                `  - ${evidence.kind}: ${evidence.value}; path=${evidence.path}; confidence=${evidence.confidence}; reasonCodes=${evidence.reasonCodes.join(', ')}`,
+            ),
         ]),
       );
     }

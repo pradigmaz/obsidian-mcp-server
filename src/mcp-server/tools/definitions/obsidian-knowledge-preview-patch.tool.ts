@@ -16,11 +16,24 @@ export const obsidianKnowledgePreviewPatch = createKnowledgeProxyTool({
       `Before: ${result.beforeHash ?? 'none'}`,
       `After: ${result.afterHash}`,
       `Preflight: ${result.preflight.status} (${result.preflight.allowed ? 'allowed' : 'blocked'})`,
+      `Safe apply hint: ${result.preflight.safeApplyHint}`,
       '',
       '```diff',
       result.diff,
       '```',
     ];
+    if (result.preflight.checks.length > 0) {
+      lines.push(
+        '',
+        'Preflight checks:',
+        ...result.preflight.checks.map(
+          (check) => `- id=${check.id}; status=${check.status}; message=${check.message}`,
+        ),
+      );
+    }
+    if (result.preflight.warnings.length > 0) {
+      lines.push('', 'Warnings:', ...result.preflight.warnings.map((warning) => `- ${warning}`));
+    }
     if (result.preflight.requiredFixes.length > 0) {
       lines.push('', 'Required fixes:', ...result.preflight.requiredFixes.map((fix) => `- ${fix}`));
       if (

@@ -41,6 +41,22 @@ const SearchHitSchema = z
   })
   .describe('Relevant note search hit.');
 
+const formatEvidencePack = (label: string, evidencePack: z.infer<typeof EvidencePackSchema>) => [
+  `${label} evidencePack confidence: ${evidencePack.confidence}`,
+  `${label} evidencePack gaps: ${evidencePack.gaps.length ? evidencePack.gaps.join(', ') : 'none'}`,
+  `${label} evidencePack provenance basis: ${evidencePack.provenance.basis}`,
+  `${label} evidencePack provenance derivation: ${evidencePack.provenance.derivation}`,
+  `${label} evidencePack provenance freshness: ${evidencePack.provenance.freshness}`,
+  `${label} evidencePack provenance strength: ${evidencePack.provenance.strength}`,
+  `${label} evidencePack provenance reasons: ${
+    evidencePack.provenance.reasons?.length ? evidencePack.provenance.reasons.join(', ') : 'none'
+  }`,
+  ...evidencePack.items.map(
+    (item) =>
+      `${label} evidencePack item: kind=${item.kind}; path=${item.path}; line=${item.line ?? 'unknown'}; value=${item.value}; reasonCode=${item.reasonCode}; weight=${item.weight}`,
+  ),
+];
+
 const AgentBootstrapResponseSchema = z
   .object({
     status: z.enum(['ok', 'error']).describe('Bootstrap status.'),
@@ -262,6 +278,16 @@ export const obsidianKnowledgeAgentBootstrap = createKnowledgeProxyTool({
       '',
       `## Search Results (Query: "${input?.query || ''}")`,
     );
+    if (result.brief.canonicalEntryPoints?.length) {
+      lines.push(
+        '- Canonical Entry Points:',
+        ...result.brief.canonicalEntryPoints.map(
+          (ep) =>
+            `  - path=${ep.path}; score=${ep.score}; confidence=${ep.confidence}; reasons=${ep.reasons.join(', ')}`,
+        ),
+        '',
+      );
+    }
 
     // Notes
     for (const note of result.notes) {
@@ -276,6 +302,7 @@ export const obsidianKnowledgeAgentBootstrap = createKnowledgeProxyTool({
             .map((item) => `${item.reasonCode}=${item.value}`)
             .join('; ')}`,
         );
+        lines.push(...formatEvidencePack(`  ${note.path}`, note.evidencePack));
       }
     }
     lines.push('');
@@ -312,9 +339,12 @@ export const obsidianKnowledgeAgentBootstrap = createKnowledgeProxyTool({
       lines.push(
         '',
         '#### Query Hits',
-        ...result.query_bundle.hits.map((hit) => {
+        ...result.query_bundle.hits.flatMap((hit) => {
           const excerpt = hit.excerpt ? ` - ${hit.excerpt}` : '';
-          return `- ${hit.title} - ${hit.path} (score: ${hit.score})${excerpt}`;
+          return [
+            `- ${hit.title} - ${hit.path} (score: ${hit.score})${excerpt}`,
+            ...(hit.evidencePack ? formatEvidencePack(`  ${hit.path}`, hit.evidencePack) : []),
+          ];
         }),
       );
     }
@@ -322,9 +352,12 @@ export const obsidianKnowledgeAgentBootstrap = createKnowledgeProxyTool({
       lines.push(
         '',
         '#### Context Notes',
-        ...result.query_bundle.context.notes.map((note) => {
+        ...result.query_bundle.context.notes.flatMap((note) => {
           const excerpt = note.excerpt ? ` - ${note.excerpt}` : '';
-          return `- ${note.title} - ${note.path} (score: ${note.score})${excerpt}`;
+          return [
+            `- ${note.title} - ${note.path} (score: ${note.score})${excerpt}`,
+            ...(note.evidencePack ? formatEvidencePack(`  ${note.path}`, note.evidencePack) : []),
+          ];
         }),
       );
     }

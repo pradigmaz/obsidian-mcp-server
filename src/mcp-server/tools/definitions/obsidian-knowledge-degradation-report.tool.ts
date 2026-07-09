@@ -74,10 +74,19 @@ export const obsidianKnowledgeDegradationReport = createKnowledgeProxyTool({
       `- Status: ${result.status}`,
       `- Omnisearch: ${result.omnisearch.available ? 'available' : 'unavailable'}`,
       `- Refresh API: ${result.omnisearch.refreshIndexAvailable ? 'available' : 'unavailable'}`,
+      `- Knowledge schema version: ${result.knowledgePlugin.schemaVersion}`,
+      `- Knowledge plugin version: ${result.knowledgePlugin.pluginVersion ?? 'unknown'}`,
+      `- Knowledge endpoint reachable: ${result.knowledgePlugin.endpointReachable ? 'yes' : 'no'}`,
+      `- Vault name: ${result.vault.name}`,
+      `- Vault note count: ${result.vault.noteCount}`,
       `- High health findings: ${result.vault.highFindings}`,
     ];
     if (result.cache) {
       lines.push(`- Health cache: ${result.cache.hit ? 'hit' : 'miss'}`);
+      lines.push(`- Cache path: ${result.cache.path}`);
+      lines.push(`- Cache timestamp: ${result.cache.timestamp ?? 'unknown'}`);
+      lines.push(`- Cache age ms: ${result.cache.ageMs ?? 'unknown'}`);
+      lines.push(`- Cache key hash: ${result.cache.keyHash ?? 'unknown'}`);
     }
     if (result.degradation_reasons.length) {
       lines.push(
@@ -99,6 +108,7 @@ export const obsidianKnowledgeDegradationReport = createKnowledgeProxyTool({
       lines.push(
         '',
         '### Last Health Snapshot',
+        `- Timestamp: ${result.lastHealthSnapshot.timestamp}`,
         `- Score: ${result.lastHealthSnapshot.score}`,
         `- Age ms: ${result.lastHealthSnapshot.ageMs}`,
       );

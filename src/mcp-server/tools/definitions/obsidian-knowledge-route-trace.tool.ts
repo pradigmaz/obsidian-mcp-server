@@ -31,6 +31,22 @@ const EvidencePackSchema = z
   })
   .describe('Capped evidence pack explaining a route trace.');
 
+const formatEvidencePack = (label: string, evidencePack: z.infer<typeof EvidencePackSchema>) => [
+  `${label} evidencePack confidence: ${evidencePack.confidence}`,
+  `${label} evidencePack gaps: ${evidencePack.gaps.length ? evidencePack.gaps.join(', ') : 'none'}`,
+  `${label} evidencePack provenance basis: ${evidencePack.provenance.basis}`,
+  `${label} evidencePack provenance derivation: ${evidencePack.provenance.derivation}`,
+  `${label} evidencePack provenance freshness: ${evidencePack.provenance.freshness}`,
+  `${label} evidencePack provenance strength: ${evidencePack.provenance.strength}`,
+  `${label} evidencePack provenance reasons: ${
+    evidencePack.provenance.reasons?.length ? evidencePack.provenance.reasons.join(', ') : 'none'
+  }`,
+  ...evidencePack.items.map(
+    (item) =>
+      `${label} evidencePack item: kind=${item.kind}; path=${item.path}; line=${item.line ?? 'unknown'}; value=${item.value}; reasonCode=${item.reasonCode}; weight=${item.weight}`,
+  ),
+];
+
 const RouteTraceResultSchema = z
   .object({
     seed: z
@@ -139,9 +155,7 @@ export const obsidianKnowledgeRouteTrace = createKnowledgeProxyTool({
       if (result.unsupported_sources?.length)
         lines.push(`- Unsupported sources: ${result.unsupported_sources.join(', ')}`);
       if (result.evidencePack?.items?.length)
-        lines.push(
-          `- Evidence: ${result.evidencePack.items.map((item) => item.reasonCode).join(', ')}`,
-        );
+        lines.push(...formatEvidencePack('-', result.evidencePack));
       if (result.unresolved_gaps?.length)
         lines.push(
           '',
@@ -180,22 +194,29 @@ export const obsidianKnowledgeRouteTrace = createKnowledgeProxyTool({
           ...(segment.from && segment.to ? [`   - Edge: ${segment.from} -> ${segment.to}`] : []),
           ...(segment.direction ? [`   - Direction: ${segment.direction}`] : []),
           ...(segment.reasonCodes?.length
-            ? [`   - Reasons: ${segment.reasonCodes.join(', ')}`]
+            ? [
+                `   - Reasons: ${segment.reasonCodes.join(', ')}`,
+                `   - reasonCodes: ${segment.reasonCodes.join(', ')}`,
+              ]
             : []),
           `   - Relation kind: ${segment.relation_kind}`,
+          ...(segment.relationKind ? [`   - relationKind: ${segment.relationKind}`] : []),
           `   - Source kind: ${segment.source_kind}`,
+          ...(segment.sourceLine !== undefined ? [`   - sourceLine: ${segment.sourceLine}`] : []),
+          ...(segment.confidence !== undefined ? [`   - confidence: ${segment.confidence}`] : []),
           `   - Score: ${segment.score}`,
         ]),
       );
     }
-    if (result.evidencePack?.items?.length) {
+    if (result.best_route?.evidencePack) {
       lines.push(
         '',
-        '### Evidence',
-        ...result.evidencePack.items.map(
-          (item) => `- ${item.path}: ${item.reasonCode} (${item.value})`,
-        ),
+        '### Best Route Evidence',
+        ...formatEvidencePack('-', result.best_route.evidencePack),
       );
+    }
+    if (result.evidencePack?.items?.length) {
+      lines.push('', '### Evidence', ...formatEvidencePack('-', result.evidencePack));
     }
     if (result.alternate_routes?.length)
       lines.push(
