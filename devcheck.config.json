@@ -17,6 +17,7 @@
       "@types/node",
       "js-yaml",
       "tsc-alias",
+      "typescript",
       "undici",
       "vitest"
     ],
