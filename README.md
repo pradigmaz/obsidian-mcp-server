@@ -113,8 +113,8 @@ If you are using Codex, add the following to your `~/.codex/config.toml` (or pro
 
 ```toml
 [mcp_servers.obsidian-knowledge-mcp]
-command = "node"
-args = ["E:\\mcp\\knowledge-mcp-server\\dist\\index.js"]
+command = "bunx"
+args = ["obsidian-knowledge-mcp@latest"]
 env = { OBSIDIAN_API_KEY = "your-local-rest-api-key", OBSIDIAN_KNOWLEDGE_URL = "http://127.0.0.1:27125" }
 ```
 
@@ -126,8 +126,8 @@ For most standard MCP environments (Antigravity, Claude Desktop, IDEs), use the 
   "mcpServers": {
     "obsidian-knowledge-mcp": {
       "type": "stdio",
-      "command": "node",
-      "args": ["E:\\mcp\\knowledge-mcp-server\\dist\\index.js"],
+      "command": "bunx",
+      "args": ["obsidian-knowledge-mcp@latest"],
       "env": {
         "OBSIDIAN_API_KEY": "your-local-rest-api-key",
         "OBSIDIAN_KNOWLEDGE_URL": "http://127.0.0.1:27125"

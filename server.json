@@ -1,9 +1,9 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.cyanheads/obsidian-mcp-server",
-  "description": "MCP server for Obsidian — read, write, search, and surgically edit notes, tags, and frontmatter.",
+  "name": "io.github.pradigmaz/obsidian-knowledge-mcp",
+  "description": "Knowledge-focused Obsidian MCP fork with core tools and Knowledge Analytics integrations.",
   "repository": {
-    "url": "https://github.com/cyanheads/obsidian-mcp-server",
+    "url": "https://github.com/pradigmaz/obsidian-mcp-server",
     "source": "github"
   },
   "version": "3.2.7",
@@ -11,7 +11,7 @@
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
-      "identifier": "obsidian-mcp-server",
+      "identifier": "obsidian-knowledge-mcp",
       "runtimeHint": "node",
       "version": "3.2.7",
       "packageArguments": [
@@ -140,7 +140,7 @@
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
-      "identifier": "obsidian-mcp-server",
+      "identifier": "obsidian-knowledge-mcp",
       "runtimeHint": "node",
       "version": "3.2.7",
       "packageArguments": [

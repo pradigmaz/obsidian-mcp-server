@@ -1,23 +1,25 @@
 {
   "manifest_version": "0.3",
-  "name": "obsidian-mcp-server",
+  "name": "obsidian-knowledge-mcp",
   "version": "3.2.7",
-  "description": "MCP server for Obsidian vaults — read, write, search, and surgically edit notes, tags, and frontmatter via the Local REST API plugin. STDIO or Streamable HTTP.",
+  "description": "Knowledge-focused Obsidian MCP fork with core tools and Knowledge Analytics integrations.",
   "author": {
-    "name": "cyanheads"
+    "name": "pradigmaz"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/cyanheads/obsidian-mcp-server"
+    "url": "https://github.com/pradigmaz/obsidian-mcp-server"
   },
-  "homepage": "https://github.com/cyanheads/obsidian-mcp-server#readme",
+  "homepage": "https://github.com/pradigmaz/obsidian-mcp-server#readme",
   "license": "Apache-2.0",
   "server": {
     "type": "node",
     "entry_point": "dist/index.js",
     "mcp_config": {
       "command": "node",
-      "args": ["${__dirname}/dist/index.js"],
+      "args": [
+        "${__dirname}/dist/index.js"
+      ],
       "env": {
         "MCP_TRANSPORT_TYPE": "stdio",
         "MCP_AUTH_MODE": "none",
@@ -31,7 +33,8 @@
         "OBSIDIAN_WRITE_PATHS": "${OBSIDIAN_WRITE_PATHS}",
         "OBSIDIAN_READ_ONLY": "${OBSIDIAN_READ_ONLY}",
         "OBSIDIAN_OMNISEARCH_URL": "${OBSIDIAN_OMNISEARCH_URL}",
-        "MCP_LOG_LEVEL": "${MCP_LOG_LEVEL}"
+        "MCP_LOG_LEVEL": "${MCP_LOG_LEVEL}",
+        "OBSIDIAN_KNOWLEDGE_URL": "${OBSIDIAN_KNOWLEDGE_URL}"
       }
     }
   },
@@ -111,6 +114,13 @@
       "type": "string",
       "required": false,
       "default": ""
+    },
+    "OBSIDIAN_KNOWLEDGE_URL": {
+      "title": "Knowledge Analytics URL",
+      "description": "Base URL of the Knowledge Analytics Obsidian plugin HTTP endpoint. Default: http://127.0.0.1:27125.",
+      "type": "string",
+      "required": false,
+      "default": "http://127.0.0.1:27125"
     }
   }
 }

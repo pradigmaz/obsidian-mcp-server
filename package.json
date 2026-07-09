@@ -1,13 +1,13 @@
 {
-  "name": "obsidian-mcp-server",
+  "name": "obsidian-knowledge-mcp",
   "version": "3.2.7",
-  "mcpName": "io.github.cyanheads/obsidian-mcp-server",
-  "description": "MCP server for Obsidian vaults — read, write, search, and surgically edit notes, tags, and frontmatter via the Local REST API plugin. STDIO or Streamable HTTP.",
+  "mcpName": "io.github.pradigmaz/obsidian-knowledge-mcp",
+  "description": "Knowledge-focused Obsidian MCP fork with core tools and Knowledge Analytics integrations.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "obsidian-mcp-server": "dist/index.js"
+    "obsidian-knowledge-mcp": "dist/index.js"
   },
   "files": [
     "changelog/",
@@ -32,7 +32,7 @@
     "format:unsafe": "biome check --write --unsafe .",
     "lint:mcp": "bun run scripts/lint-mcp.ts",
     "lint:packaging": "bun run scripts/lint-packaging.ts",
-    "bundle": "bun run build && npx -y @anthropic-ai/mcpb pack . dist/obsidian-mcp-server.mcpb && bun run scripts/clean-mcpb.ts dist/obsidian-mcp-server.mcpb",
+    "bundle": "bun run build && npx -y @anthropic-ai/mcpb pack . dist/obsidian-knowledge-mcp.mcpb && bun run scripts/clean-mcpb.ts dist/obsidian-knowledge-mcp.mcpb",
     "changelog:build": "bun run scripts/build-changelog.ts",
     "changelog:check": "bun run scripts/build-changelog.ts --check",
     "test": "bunx vitest run",
@@ -50,30 +50,23 @@
     "streamable-http",
     "obsidian",
     "obsidian-vault",
+    "knowledge-analytics",
     "knowledge-base",
-    "note-taking",
+    "graph-search",
+    "okf",
     "ai-tools",
     "typescript",
     "bun"
   ],
-  "author": "cyanheads <casey@caseyjhand.com> (https://github.com/cyanheads/obsidian-mcp-server#readme)",
-  "funding": [
-    {
-      "type": "github",
-      "url": "https://github.com/sponsors/cyanheads"
-    },
-    {
-      "type": "buy_me_a_coffee",
-      "url": "https://www.buymeacoffee.com/cyanheads"
-    }
-  ],
+  "author": "pradigmaz (fork of cyanheads/obsidian-mcp-server)",
+  "funding": [],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/cyanheads/obsidian-mcp-server.git"
+    "url": "git+https://github.com/pradigmaz/obsidian-mcp-server.git"
   },
-  "homepage": "https://github.com/cyanheads/obsidian-mcp-server#readme",
+  "homepage": "https://github.com/pradigmaz/obsidian-mcp-server#readme",
   "bugs": {
-    "url": "https://github.com/cyanheads/obsidian-mcp-server/issues"
+    "url": "https://github.com/pradigmaz/obsidian-mcp-server/issues"
   },
   "license": "Apache-2.0",
   "engines": {

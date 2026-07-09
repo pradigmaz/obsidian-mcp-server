@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * @fileoverview obsidian-mcp-server entry point. Initializes the Obsidian
+ * @fileoverview obsidian-knowledge-mcp entry point. Initializes the Obsidian
  * Local REST API service at module load so the Omnisearch probe can run
  * before tools are constructed — `obsidian_search_notes` is built via a
  * factory that takes Omnisearch reachability as input, so the `omnisearch`
@@ -100,8 +100,8 @@ const commandTools =
 const tools = [...readToolDefinitions, searchNotesTool, ...writeTools, ...commandTools];
 
 const { services } = await createApp({
-  name: 'obsidian-mcp-server',
-  title: 'obsidian-mcp-server',
+  name: 'obsidian-knowledge-mcp',
+  title: 'obsidian-knowledge-mcp',
   tools,
   resources: allResourceDefinitions,
   prompts: allPromptDefinitions,
