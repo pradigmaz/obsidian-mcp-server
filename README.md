@@ -5,7 +5,7 @@
   <h1>obsidian-knowledge-mcp</h1>
 
   <p>
-    <b>Advanced MCP server for Obsidian vaults with Knowledge Analytics, graph intelligence, and Google OKF validation.</b>
+    <b>Knowledge-focused fork of the Obsidian MCP server with graph intelligence, OKF validation, and safe Knowledge Analytics write tools.</b>
   </p>
 
   <p>
@@ -20,23 +20,25 @@
   </p>
 
   <p>
-    <i>This project is a fork of <a href="https://github.com/cyanheads/obsidian-mcp-server">cyanheads/obsidian-mcp-server</a>. We extended the core read/write capabilities with a suite of analytical tools to make your vault an autonomous agent's perfect memory system. We do not claim authorship of the base server architecture.</i>
+    <i>This project is a fork of <a href="https://github.com/cyanheads/obsidian-mcp-server">cyanheads/obsidian-mcp-server</a>. Use the original server for general Obsidian MCP access; use this fork when you also run the <a href="https://github.com/pradigmaz/knowledge-obsidian-plugin">Knowledge Analytics</a> plugin and want the extra <code>obsidian_knowledge_*</code> tools. We do not claim authorship of the base server architecture.</i>
   </p>
   
   <p>
-    <b>14 Core Tools • 9 Knowledge Tools • 3 Resources</b>
+    <b>14 Core Tools • 15 Knowledge Tools • 3 Resources</b>
   </p>
 </div>
 
 ---
 
-## ⚠️ Required Dependencies
+## ⚠️ Dependencies
 
-> **IMPORTANT:** To use the analytical tools exposed by this server, your Obsidian vault **MUST** have the following plugins installed and enabled:
+This fork has two layers:
 
-1. **[Obsidian Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api)** (For core read/write tools)
-2. **[Knowledge Analytics](https://github.com/pradigmaz/knowledge-obsidian-plugin)** (For graph/hygiene tools)
-3. **[Omnisearch](https://github.com/scambier/obsidian-omnisearch)** (Required by Knowledge Analytics for `obsidian_search_notes` and `obsidian_knowledge_smart_search`)
+1. **Core Obsidian tools** are inherited from [cyanheads/obsidian-mcp-server](https://github.com/cyanheads/obsidian-mcp-server) and require **[Obsidian Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api)**.
+2. **Knowledge tools** (`obsidian_knowledge_*`) are specific to this fork and require **[Knowledge Analytics](https://github.com/pradigmaz/knowledge-obsidian-plugin)** running on `http://127.0.0.1:27125`.
+3. **Omnisearch** is required by Knowledge Analytics for BM25/full-text retrieval used by `obsidian_knowledge_smart_search`.
+
+If you only need general Obsidian MCP access, use the original upstream server. This fork exists for vaults that intentionally install the Knowledge Analytics plugin.
 
 ---
 
@@ -51,19 +53,25 @@
 ## 🛠️ Tools
 
 ### Knowledge Analytics Tools
-*Requires the Knowledge Analytics plugin running on `http://127.0.0.1:27125`.*
+*Specific to this fork. Requires the Knowledge Analytics plugin running on `http://127.0.0.1:27125`.*
 
 | Tool Name | Description |
 |:----------|:------------|
+| `obsidian_knowledge_status` | Check Knowledge Analytics plugin readiness, schema compatibility, capabilities, and startup dependencies. |
 | `obsidian_knowledge_smart_search` | BM25 + graph centrality ranked search with generated lineage demotion. |
-| `obsidian_knowledge_health_report` | Vault hygiene scan for orphaned notes, stale hubs, and missing OKF metadata. |
-| `obsidian_knowledge_workspace_brief` | Fast vault identity, graph summary, and top entry points. |
 | `obsidian_knowledge_agent_bootstrap` | Condensed bootstrap snapshot (brief + search) for starting tasks. |
+| `obsidian_knowledge_health_report` | Vault hygiene scan for orphaned notes, stale hubs, and missing OKF metadata. |
+| `obsidian_knowledge_degradation_report` | Explain current degraded/blocked state, freshness signals, and safe recovery actions. |
+| `obsidian_knowledge_workspace_brief` | Fast vault identity, graph summary, and top entry points. |
 | `obsidian_knowledge_signal_memory` | Manage memory signals for agent alignment. |
-| `obsidian_knowledge_query_benchmark` | Regression testing for search queries. |
+| `obsidian_knowledge_investigate_constraint` | Inspect why a specific note violates a Knowledge health or OKF rule. |
 | `obsidian_knowledge_route_trace` | BFS pathfinding graph algorithm to discover connections between notes. |
 | `obsidian_knowledge_concept_cluster` | Find cross-links and semantic neighbors for any given concept. |
+| `obsidian_knowledge_query_benchmark` | Regression testing for search queries. |
 | `obsidian_knowledge_janitor_scan` | Find unstructured notes missing `type` and `summary`/`description` OKF frontmatter. |
+| `obsidian_knowledge_write_preflight` | Check whether a proposed Knowledge write is safe before modifying the vault. |
+| `obsidian_knowledge_preview_patch` | Preview a safe patch, including preflight status and bounded diff context, without writing. |
+| `obsidian_knowledge_apply_patch` | Apply a preflighted patch with backup, audit log entry, and post-write validation. |
 
 ### Core Obsidian Tools (from upstream)
 *Requires the Local REST API plugin running on `http://127.0.0.1:27123`.*
@@ -105,8 +113,8 @@ If you are using Codex, add the following to your `~/.codex/config.toml` (or pro
 
 ```toml
 [mcp_servers.obsidian-knowledge-mcp]
-command = "bunx"
-args = ["obsidian-mcp-server@latest"]
+command = "node"
+args = ["E:\\mcp\\knowledge-mcp-server\\dist\\index.js"]
 env = { OBSIDIAN_API_KEY = "your-local-rest-api-key", OBSIDIAN_KNOWLEDGE_URL = "http://127.0.0.1:27125" }
 ```
 
@@ -118,8 +126,8 @@ For most standard MCP environments (Antigravity, Claude Desktop, IDEs), use the 
   "mcpServers": {
     "obsidian-knowledge-mcp": {
       "type": "stdio",
-      "command": "bunx",
-      "args": ["obsidian-mcp-server@latest"],
+      "command": "node",
+      "args": ["E:\\mcp\\knowledge-mcp-server\\dist\\index.js"],
       "env": {
         "OBSIDIAN_API_KEY": "your-local-rest-api-key",
         "OBSIDIAN_KNOWLEDGE_URL": "http://127.0.0.1:27125"
