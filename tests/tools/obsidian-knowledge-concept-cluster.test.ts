@@ -33,16 +33,20 @@ describe('obsidian_knowledge_concept_cluster', () => {
         capability_status: 'ok',
         unsupported_sources: [],
         confidence: 0.8,
-        member_evidence: [{
-          path: 'AI.md',
-          evidence: [{
-            kind: 'direct_link',
+        member_evidence: [
+          {
             path: 'AI.md',
-            value: 'cluster seed',
-            confidence: 1,
-            reasonCodes: ['cluster_seed'],
-          }],
-        }],
+            evidence: [
+              {
+                kind: 'direct_link',
+                path: 'AI.md',
+                value: 'cluster seed',
+                confidence: 1,
+                reasonCodes: ['cluster_seed'],
+              },
+            ],
+          },
+        ],
         cluster: ['AI.md', 'Agents.md'],
         relatedConcepts: ['LLM', 'Prompting'],
       }),

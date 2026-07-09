@@ -1,9 +1,20 @@
 import { z } from '@cyanheads/mcp-ts-core';
 import { createKnowledgeProxyTool } from './obsidian-knowledge-client.js';
 
+const SnapshotCacheDiagnosticsSchema = z
+  .object({
+    hit: z.boolean().describe('Whether the snapshot cache was used.'),
+    path: z.string().describe('Vault-relative cache path.'),
+    timestamp: z.number().optional().describe('Cache timestamp when available.'),
+    ageMs: z.number().nonnegative().optional().describe('Cache age in milliseconds.'),
+    keyHash: z.string().optional().describe('Snapshot cache key hash.'),
+  })
+  .describe('Snapshot cache diagnostics for this degradation report.');
+
 const DegradationReportSchema = z
   .object({
     status: z.enum(['ok', 'degraded', 'stale', 'blocked']).describe('Overall degradation status.'),
+    cache: SnapshotCacheDiagnosticsSchema.optional(),
     degradation_reasons: z
       .array(z.string().describe('Stable degradation reason code.'))
       .describe('Reasons search or recovery is degraded.'),
@@ -21,9 +32,7 @@ const DegradationReportSchema = z
     omnisearch: z
       .object({
         available: z.boolean().describe('Whether Omnisearch search API is available.'),
-        refreshIndexAvailable: z
-          .boolean()
-          .describe('Whether Omnisearch exposes refreshIndex.'),
+        refreshIndexAvailable: z.boolean().describe('Whether Omnisearch exposes refreshIndex.'),
       })
       .describe('Omnisearch runtime status.'),
     knowledgePlugin: z
@@ -67,8 +76,15 @@ export const obsidianKnowledgeDegradationReport = createKnowledgeProxyTool({
       `- Refresh API: ${result.omnisearch.refreshIndexAvailable ? 'available' : 'unavailable'}`,
       `- High health findings: ${result.vault.highFindings}`,
     ];
+    if (result.cache) {
+      lines.push(`- Health cache: ${result.cache.hit ? 'hit' : 'miss'}`);
+    }
     if (result.degradation_reasons.length) {
-      lines.push('', '### Degradation Reasons', ...result.degradation_reasons.map((reason) => `- ${reason}`));
+      lines.push(
+        '',
+        '### Degradation Reasons',
+        ...result.degradation_reasons.map((reason) => `- ${reason}`),
+      );
     }
     if (result.recovery_actions.length) {
       lines.push(

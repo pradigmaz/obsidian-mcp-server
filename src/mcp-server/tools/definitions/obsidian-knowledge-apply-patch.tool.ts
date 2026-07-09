@@ -15,7 +15,7 @@ export const obsidianKnowledgeApplyPatch = createKnowledgeProxyTool({
       `**Knowledge Patch Apply: ${result.status}**`,
       `Applied: ${result.applied ? 'yes' : 'no'}`,
       `Path: ${result.path}`,
-      `Before: ${result.beforeHash}`,
+      `Before: ${result.beforeHash ?? 'none'}`,
       `After: ${result.afterHash}`,
       `Backup: ${result.backupPath ?? 'none'}`,
       `Audit: ${result.auditId}`,
@@ -25,7 +25,9 @@ export const obsidianKnowledgeApplyPatch = createKnowledgeProxyTool({
       lines.push(
         '',
         'Validation violations:',
-        ...result.postWriteValidation.violations.map((violation) => `- ${JSON.stringify(violation)}`),
+        ...result.postWriteValidation.violations.map(
+          (violation) => `- ${JSON.stringify(violation)}`,
+        ),
       );
     }
     if (!result.applied) {

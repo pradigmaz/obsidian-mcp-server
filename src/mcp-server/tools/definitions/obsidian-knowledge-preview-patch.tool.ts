@@ -13,7 +13,7 @@ export const obsidianKnowledgePreviewPatch = createKnowledgeProxyTool({
     const lines = [
       `**Knowledge Patch Preview: ${result.status}**`,
       `Range: L${result.affectedRange.startLine}-L${result.affectedRange.endLine}`,
-      `Before: ${result.beforeHash}`,
+      `Before: ${result.beforeHash ?? 'none'}`,
       `After: ${result.afterHash}`,
       `Preflight: ${result.preflight.status} (${result.preflight.allowed ? 'allowed' : 'blocked'})`,
       '',
@@ -23,8 +23,15 @@ export const obsidianKnowledgePreviewPatch = createKnowledgeProxyTool({
     ];
     if (result.preflight.requiredFixes.length > 0) {
       lines.push('', 'Required fixes:', ...result.preflight.requiredFixes.map((fix) => `- ${fix}`));
-      if (result.preflight.requiredFixes.some((fix) => fix.includes('baseHash mismatch') || fix.includes('baseMtime mismatch'))) {
-        lines.push('', 'Recovery: reread the note, then retry with the new baseHash and baseMtime.');
+      if (
+        result.preflight.requiredFixes.some(
+          (fix) => fix.includes('baseHash mismatch') || fix.includes('baseMtime mismatch'),
+        )
+      ) {
+        lines.push(
+          '',
+          'Recovery: reread the note, then retry with the new baseHash and baseMtime.',
+        );
       }
     }
     return [{ type: 'text', text: lines.join('\n') }];

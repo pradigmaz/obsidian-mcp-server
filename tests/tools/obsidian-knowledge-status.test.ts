@@ -33,9 +33,7 @@ describe('obsidianKnowledgeStatus', () => {
     expect(out.result).toMatchObject({
       status: 'blocked',
       schemaVersion: 'unknown',
-      errors: [
-        'Knowledge Analytics endpoint is not reachable at http://127.0.0.1:27125.',
-      ],
+      errors: ['Knowledge Analytics endpoint is not reachable at http://127.0.0.1:27125.'],
     });
   });
 

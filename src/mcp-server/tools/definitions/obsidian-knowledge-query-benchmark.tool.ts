@@ -177,6 +177,7 @@ export const obsidianKnowledgeQueryBenchmark = createKnowledgeProxyTool({
       .number()
       .int()
       .positive()
+      .max(20)
       .optional()
       .describe('Number of benchmark runs to execute before selecting a median.'),
     medianRule: z.string().optional().describe('Rule used to select the median run.'),

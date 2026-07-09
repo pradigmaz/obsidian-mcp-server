@@ -26,7 +26,15 @@ describe('obsidian_knowledge_route_trace', () => {
         seed: { seed: 'A.md', seed_kind: 'note' },
         best_route: {
           segments: [
-            { kind: 'link', path: 'A.md', language: 'md', evidence: 'Route seed.', relation_kind: 'reference', source_kind: 'vault', score: 1 },
+            {
+              kind: 'link',
+              path: 'A.md',
+              language: 'md',
+              evidence: 'Route seed.',
+              relation_kind: 'reference',
+              source_kind: 'vault',
+              score: 1,
+            },
             {
               kind: 'link',
               path: 'B.md',
@@ -54,13 +62,15 @@ describe('obsidian_knowledge_route_trace', () => {
         unsupported_sources: [],
         confidence: 1,
         evidencePack: {
-          items: [{
-            kind: 'link',
-            path: 'A.md',
-            value: 'route seed',
-            reasonCode: 'route_seed',
-            weight: 0.8,
-          }],
+          items: [
+            {
+              kind: 'link',
+              path: 'A.md',
+              value: 'route seed',
+              reasonCode: 'route_seed',
+              weight: 0.8,
+            },
+          ],
           confidence: 0.8,
           gaps: [],
           provenance: {

@@ -18,12 +18,18 @@ describe('obsidian_knowledge_write_preflight', () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
-      headers: { get: (name: string) => name.toLowerCase() === 'x-knowledge-plugin' ? '1' : '0.1.0' },
+      headers: {
+        get: (name: string) => (name.toLowerCase() === 'x-knowledge-plugin' ? '1' : '0.1.0'),
+      },
       json: async () => ({
         status: 'blocked',
         allowed: false,
         checks: [
-          { id: 'path_vault_relative', status: 'fail', message: 'Path must be vault-relative and must not escape the vault.' },
+          {
+            id: 'path_vault_relative',
+            status: 'fail',
+            message: 'Path must be vault-relative and must not escape the vault.',
+          },
           { id: 'frontmatter_type', status: 'warn', message: 'Frontmatter should include type.' },
         ],
         requiredFixes: ['Path must be vault-relative and must not escape the vault.'],

@@ -28,7 +28,9 @@ describe('Knowledge patch tools', () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
-      headers: { get: (name: string) => name.toLowerCase() === 'x-knowledge-plugin' ? '1' : '0.1.0' },
+      headers: {
+        get: (name: string) => (name.toLowerCase() === 'x-knowledge-plugin' ? '1' : '0.1.0'),
+      },
       json: async () => ({
         status: 'ok',
         diff: '--- before\n+++ after',
@@ -56,14 +58,18 @@ describe('Knowledge patch tools', () => {
       expect.objectContaining({ method: 'POST', body: JSON.stringify(input) }),
     );
     expect(res.result.status).toBe('ok');
-    expect(obsidianKnowledgePreviewPatch.format(res)[0].text).toContain('Knowledge Patch Preview: ok');
+    expect(obsidianKnowledgePreviewPatch.format(res)[0].text).toContain(
+      'Knowledge Patch Preview: ok',
+    );
   });
 
   it('maps stale apply conflicts as blocked results with recovery detail', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
-      headers: { get: (name: string) => name.toLowerCase() === 'x-knowledge-plugin' ? '1' : '0.1.0' },
+      headers: {
+        get: (name: string) => (name.toLowerCase() === 'x-knowledge-plugin' ? '1' : '0.1.0'),
+      },
       json: async () => ({
         status: 'blocked',
         applied: false,
@@ -103,5 +109,47 @@ describe('Knowledge patch tools', () => {
     expect(res.result.applied).toBe(false);
     expect(obsidianKnowledgeApplyPatch.format(res)[0].text).toContain('Applied: no');
     expect(obsidianKnowledgeApplyPatch.format(res)[0].text).toContain('reread the note');
+  });
+
+  it('allows replace_file create calls without baseHash and baseMtime', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: {
+        get: (name: string) => (name.toLowerCase() === 'x-knowledge-plugin' ? '1' : '0.1.0'),
+      },
+      json: async () => ({
+        status: 'ok',
+        applied: true,
+        path: 'Notes/New.md',
+        beforeHash: null,
+        afterHash: 'sha256:after',
+        backupPath: null,
+        auditId: 'patch-create',
+        postWriteValidation: {
+          status: 'ok',
+          violations: [],
+          newViolations: [],
+          resolvedViolations: [],
+        },
+      }),
+    });
+
+    const input = {
+      path: 'Notes/New.md',
+      mode: 'replace_file' as const,
+      content: '---\ntype: concept\n---\n# New\n',
+    };
+    const res = await obsidianKnowledgeApplyPatch.handler(input, {
+      fail: vi.fn(),
+      recoveryFor: vi.fn(() => ({})),
+    } as any);
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:27125/api/write/apply-patch',
+      expect.objectContaining({ method: 'POST', body: JSON.stringify(input) }),
+    );
+    expect(res.result.beforeHash).toBeNull();
+    expect(obsidianKnowledgeApplyPatch.format(res)[0].text).toContain('Before:');
   });
 });

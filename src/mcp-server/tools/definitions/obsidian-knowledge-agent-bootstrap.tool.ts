@@ -221,7 +221,7 @@ export const obsidianKnowledgeAgentBootstrap = createKnowledgeProxyTool({
   }),
   output: AgentBootstrapResponseSchema,
   path: '/api/bootstrap',
-  headers: (input) => input.privacy_mode ? { 'X-Knowledge-Privacy': input.privacy_mode } : {},
+  headers: (input) => (input.privacy_mode ? { 'X-Knowledge-Privacy': input.privacy_mode } : {}),
 
   format: ({ result, input }) => {
     const asText = (value: unknown) => (typeof value === 'string' ? value : JSON.stringify(value));

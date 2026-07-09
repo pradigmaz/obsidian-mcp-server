@@ -223,6 +223,20 @@ const SmartSearchIndexTelemetrySchema = z
   })
   .describe('Index and embedding telemetry for the query.');
 
+const FallbackTelemetrySchema = z
+  .object({
+    scanLimit: z.number().int().nonnegative().describe('Maximum markdown files the fallback may scan.'),
+    scannedFiles: z.number().int().nonnegative().describe('Markdown files actually scanned.'),
+    totalMarkdownFiles: z.number().int().nonnegative().describe('Total markdown files in the vault.'),
+    matchingFiles: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe('Markdown files matching cheap fallback filters before body reads.'),
+    capped: z.boolean().describe('Whether fallback scanning stopped before all matching files were read.'),
+  })
+  .describe('Vault-text fallback search telemetry.');
+
 const SmartSearchDegradationReasonSchema = z
   .enum([
     'semantic_fail_open',
@@ -411,6 +425,7 @@ const SmartSearchQueryReportSchema = z
       .record(z.string(), z.unknown())
       .optional()
       .describe('Legacy filters applied to the query.'),
+    fallbackTelemetry: FallbackTelemetrySchema.optional(),
     topRankingFactors: z
       .array(z.string().describe('Legacy top ranking factor.'))
       .optional()
@@ -476,7 +491,7 @@ export const obsidianKnowledgeSmartSearch = createKnowledgeProxyTool({
   output: SmartSearchResultSchema,
   path: '/api/search',
   gatekeeper: { requireHealth: true, skipStrict: (input) => input.allow_degraded === true },
-  headers: (input) => input.privacy_mode ? { 'X-Knowledge-Privacy': input.privacy_mode } : {},
+  headers: (input) => (input.privacy_mode ? { 'X-Knowledge-Privacy': input.privacy_mode } : {}),
 
   format: ({ result }) => {
     const lines = [`**Knowledge Smart Search: "${result.query}"**`];

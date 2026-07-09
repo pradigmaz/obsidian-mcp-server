@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from '@cyanheads/mcp-ts-core';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createKnowledgeProxyTool,
   requestKnowledgeJson,

@@ -36,7 +36,10 @@ export const obsidianKnowledgeWritePreflight = createKnowledgeProxyTool({
       .optional()
       .describe('Proposed full or partial content preview used for size and secret checks.'),
     baseMtime: z.number().optional().describe('Observed file mtime for stale-write detection.'),
-    baseHash: z.string().optional().describe('Observed file content hash for stale-write detection.'),
+    baseHash: z
+      .string()
+      .optional()
+      .describe('Observed file content hash for stale-write detection.'),
   }),
   output: WritePreflightResultSchema,
   path: '/api/write/preflight',
@@ -47,7 +50,9 @@ export const obsidianKnowledgeWritePreflight = createKnowledgeProxyTool({
       `Allowed: ${result.allowed ? 'yes' : 'no'}`,
       '',
       'Checks:',
-      ...result.checks.map((check) => `- ${check.status.toUpperCase()} ${check.id}: ${check.message}`),
+      ...result.checks.map(
+        (check) => `- ${check.status.toUpperCase()} ${check.id}: ${check.message}`,
+      ),
     ];
     if (result.requiredFixes.length > 0) {
       lines.push('', 'Required fixes:', ...result.requiredFixes.map((fix) => `- ${fix}`));

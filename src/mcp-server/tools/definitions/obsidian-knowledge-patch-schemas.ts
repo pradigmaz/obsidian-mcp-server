@@ -17,8 +17,15 @@ export const PatchPreflightSchema = z.object({
 
 export const PatchInputSchema = z.object({
   path: z.string().min(1).describe('Vault-relative markdown path to patch.'),
-  baseHash: z.string().min(1).describe('SHA-256 content hash observed before patching.'),
-  baseMtime: z.number().describe('File mtime observed before patching.'),
+  baseHash: z
+    .string()
+    .min(1)
+    .optional()
+    .describe('SHA-256 content hash observed before patching. Omit when replace_file creates a missing note.'),
+  baseMtime: z
+    .number()
+    .optional()
+    .describe('File mtime observed before patching. Omit when replace_file creates a missing note.'),
   mode: z
     .enum(['replace_section', 'insert_after_heading', 'append_to_note', 'replace_file'])
     .describe('Patch mode.'),
@@ -36,7 +43,7 @@ export const AffectedRangeSchema = z.object({
 export const PatchPreviewResultSchema = z.object({
   status: z.enum(['ok', 'blocked']),
   diff: z.string(),
-  beforeHash: z.string(),
+  beforeHash: z.string().nullable(),
   afterHash: z.string(),
   affectedRange: AffectedRangeSchema,
   preflight: PatchPreflightSchema,
@@ -46,7 +53,7 @@ export const PatchApplyResultSchema = z.object({
   status: z.enum(['ok', 'blocked']),
   applied: z.boolean(),
   path: z.string(),
-  beforeHash: z.string(),
+  beforeHash: z.string().nullable(),
   afterHash: z.string(),
   backupPath: z.string().nullable(),
   auditId: z.string(),

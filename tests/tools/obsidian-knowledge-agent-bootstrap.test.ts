@@ -24,31 +24,35 @@ describe('obsidian_knowledge_agent_bootstrap', () => {
       json: async () => ({
         status: 'ok',
         brief: { filesCount: 42, topTags: [{ tag: '#test', count: 1 }] },
-        notes: [{
-          path: 'test.md',
-          title: 'Test',
-          score: 1.5,
-          excerpt: 'Hello world',
-          evidencePack: {
-            items: [{
-              kind: 'section',
-              path: 'test.md',
-              line: 0,
-              value: 'Test',
-              reasonCode: 'heading_match',
-              weight: 0.95,
-            }],
-            confidence: 0.9,
-            gaps: [],
-            provenance: {
-              basis: 'mixed',
-              derivation: 'evidence_pack',
-              freshness: 'index_snapshot',
-              strength: 'strong',
-              reasons: ['heading_match'],
+        notes: [
+          {
+            path: 'test.md',
+            title: 'Test',
+            score: 1.5,
+            excerpt: 'Hello world',
+            evidencePack: {
+              items: [
+                {
+                  kind: 'section',
+                  path: 'test.md',
+                  line: 0,
+                  value: 'Test',
+                  reasonCode: 'heading_match',
+                  weight: 0.95,
+                },
+              ],
+              confidence: 0.9,
+              gaps: [],
+              provenance: {
+                basis: 'mixed',
+                derivation: 'evidence_pack',
+                freshness: 'index_snapshot',
+                strength: 'strong',
+                reasons: ['heading_match'],
+              },
             },
           },
-        }],
+        ],
         relevantLinks: ['other.md'],
         relevantBacklinks: ['source.md'],
         openQuestions: ['Is this a test?'],

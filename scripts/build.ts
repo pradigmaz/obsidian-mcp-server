@@ -22,6 +22,11 @@ import { fileURLToPath } from 'node:url';
 const ROOT_DIR = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST_DIR = join(ROOT_DIR, 'dist');
 
+function binPath(name: string): string {
+  const executable = process.platform === 'win32' ? `${name}.cmd` : name;
+  return join(ROOT_DIR, 'node_modules', '.bin', executable);
+}
+
 async function exec(
   cmd: string[],
   label: string,
@@ -104,14 +109,11 @@ async function main() {
   const totalStart = performance.now();
 
   // Step 1: tsc
-  const tsc = await exec([join(ROOT_DIR, 'node_modules', '.bin', 'tsc'), '-p', project], 'tsc');
+  const tsc = await exec([binPath('tsc'), '-p', project], 'tsc');
   if (!tsc.ok) process.exit(1);
 
   // Step 2: tsc-alias
-  const alias = await exec(
-    [join(ROOT_DIR, 'node_modules', '.bin', 'tsc-alias'), '-p', project],
-    'tsc-alias',
-  );
+  const alias = await exec([binPath('tsc-alias'), '-p', project], 'tsc-alias');
   if (!alias.ok) process.exit(1);
 
   const totalMs = Math.round(performance.now() - totalStart);

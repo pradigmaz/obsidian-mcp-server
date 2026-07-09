@@ -39,8 +39,8 @@ import { obsidianKnowledgeRouteTrace } from './obsidian-knowledge-route-trace.to
 import { obsidianKnowledgeSignalMemoryTool } from './obsidian-knowledge-signal-memory.tool.js';
 import { obsidianKnowledgeSmartSearch } from './obsidian-knowledge-smart-search.tool.js';
 import { obsidianKnowledgeStatus } from './obsidian-knowledge-status.tool.js';
-import { obsidianKnowledgeWritePreflight } from './obsidian-knowledge-write-preflight.tool.js';
 import { obsidianKnowledgeWorkspaceBrief } from './obsidian-knowledge-workspace-brief.tool.js';
+import { obsidianKnowledgeWritePreflight } from './obsidian-knowledge-write-preflight.tool.js';
 
 /**
  * Read-only tools that don't depend on runtime probes — always registered,
@@ -60,7 +60,6 @@ export const readToolDefinitions = [
   obsidianKnowledgeAgentBootstrap,
   obsidianKnowledgeDegradationReport,
   obsidianKnowledgeSignalMemoryTool,
-  obsidianKnowledgeQueryBenchmark,
   obsidianKnowledgeRouteTrace,
   obsidianKnowledgeConceptCluster,
   obsidianKnowledgeJanitorScan,
@@ -82,6 +81,7 @@ export const writeToolDefinitions = [
   obsidianManageTags,
   obsidianDeleteNote,
   obsidianKnowledgeApplyPatch,
+  obsidianKnowledgeQueryBenchmark,
 ];
 
 /** Command-palette tools — opt-in via `OBSIDIAN_ENABLE_COMMANDS=true`; suppressed by `OBSIDIAN_READ_ONLY=true`. */

@@ -110,8 +110,9 @@ export const obsidianKnowledgeConceptCluster = createKnowledgeProxyTool({
         return value.id;
       return JSON.stringify(value);
     };
-    const cluster =
-      result.variants?.length ? result.variants.map((variant) => asText(variant)) : result.cluster || [];
+    const cluster = result.variants?.length
+      ? result.variants.map((variant) => asText(variant))
+      : result.cluster || [];
     const related = result.relatedConcepts || [];
     const lines = [
       `**Concept Cluster: ${concept}**`,
@@ -139,7 +140,9 @@ export const obsidianKnowledgeConceptCluster = createKnowledgeProxyTool({
         '### Member Evidence',
         ...result.member_evidence.flatMap((member) => [
           `- ${member.path}`,
-          ...member.evidence.slice(0, 3).map((evidence) => `  - ${evidence.kind}: ${evidence.value}`),
+          ...member.evidence
+            .slice(0, 3)
+            .map((evidence) => `  - ${evidence.kind}: ${evidence.value}`),
         ]),
       );
     }

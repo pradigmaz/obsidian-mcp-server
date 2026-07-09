@@ -49,14 +49,16 @@ describe('obsidian_knowledge_smart_search', () => {
               generatedPenalty: 1,
             },
             evidencePack: {
-              items: [{
-                kind: 'section',
-                path: 'test.md',
-                line: 10,
-                value: 'Result Section',
-                reasonCode: 'heading_match',
-                weight: 0.95,
-              }],
+              items: [
+                {
+                  kind: 'section',
+                  path: 'test.md',
+                  line: 10,
+                  value: 'Result Section',
+                  reasonCode: 'heading_match',
+                  weight: 0.95,
+                },
+              ],
               confidence: 0.9,
               gaps: [],
               provenance: {
@@ -77,6 +79,13 @@ describe('obsidian_knowledge_smart_search', () => {
           resultCount: 1,
           warnings: ['omnisearch disabled'],
           filters: { tags: ['#project'] },
+          fallbackTelemetry: {
+            scanLimit: 500,
+            scannedFiles: 10,
+            totalMarkdownFiles: 100,
+            matchingFiles: 10,
+            capped: false,
+          },
           topRankingFactors: ['omnisearch', 'apiSurface'],
           degradation: ['vault-text'],
         },
@@ -115,6 +124,7 @@ describe('obsidian_knowledge_smart_search', () => {
     );
 
     expect(res.result.queryReport?.fallbackUsed).toBe(true);
+    expect(res.result.queryReport?.fallbackTelemetry?.scannedFiles).toBe(10);
 
     const formatted = obsidianKnowledgeSmartSearch.format(res);
     expect(formatted).toHaveLength(1);

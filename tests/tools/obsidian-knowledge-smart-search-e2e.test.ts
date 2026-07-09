@@ -240,6 +240,13 @@ describe('obsidian_knowledge_smart_search E2E tests', () => {
       fallbackUsed: true,
       degradation_reasons: ['chunk_preview_fallback'],
       warnings: ['omnisearch disabled'],
+      fallbackTelemetry: {
+        scanLimit: 500,
+        scannedFiles: 25,
+        totalMarkdownFiles: 100,
+        matchingFiles: 25,
+        capped: false,
+      },
     });
 
     mockFetch.mockResolvedValueOnce({
@@ -261,6 +268,8 @@ describe('obsidian_knowledge_smart_search E2E tests', () => {
     expect(res.result.queryReport?.fallbackUsed).toBe(true);
     expect(res.result.queryReport?.degradation_reasons).toContain('chunk_preview_fallback');
     expect(res.result.queryReport?.warnings).toContain('omnisearch disabled');
+    const parsed = obsidianKnowledgeSmartSearch.output.parse(res);
+    expect(parsed.result.queryReport?.fallbackTelemetry?.scanLimit).toBe(500);
   });
 
   // Tier 1: Metadata Filters Integration (F5.1 - F5.5)

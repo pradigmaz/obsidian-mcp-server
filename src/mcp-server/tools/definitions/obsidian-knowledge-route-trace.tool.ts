@@ -63,7 +63,12 @@ const RouteTraceResultSchema = z
                   .optional()
                   .describe('Direction of the vault link relative to traversal.'),
                 relationKind: z.string().optional().describe('Canonical relation kind.'),
-                sourceLine: z.number().int().nonnegative().optional().describe('Source line when known.'),
+                sourceLine: z
+                  .number()
+                  .int()
+                  .nonnegative()
+                  .optional()
+                  .describe('Source line when known.'),
                 confidence: z.number().optional().describe('Segment confidence.'),
                 reasonCodes: z
                   .array(z.string().describe('Segment reason code.'))
@@ -134,7 +139,9 @@ export const obsidianKnowledgeRouteTrace = createKnowledgeProxyTool({
       if (result.unsupported_sources?.length)
         lines.push(`- Unsupported sources: ${result.unsupported_sources.join(', ')}`);
       if (result.evidencePack?.items?.length)
-        lines.push(`- Evidence: ${result.evidencePack.items.map((item) => item.reasonCode).join(', ')}`);
+        lines.push(
+          `- Evidence: ${result.evidencePack.items.map((item) => item.reasonCode).join(', ')}`,
+        );
       if (result.unresolved_gaps?.length)
         lines.push(
           '',
@@ -172,7 +179,9 @@ export const obsidianKnowledgeRouteTrace = createKnowledgeProxyTool({
           `   - Evidence: ${segment.evidence}`,
           ...(segment.from && segment.to ? [`   - Edge: ${segment.from} -> ${segment.to}`] : []),
           ...(segment.direction ? [`   - Direction: ${segment.direction}`] : []),
-          ...(segment.reasonCodes?.length ? [`   - Reasons: ${segment.reasonCodes.join(', ')}`] : []),
+          ...(segment.reasonCodes?.length
+            ? [`   - Reasons: ${segment.reasonCodes.join(', ')}`]
+            : []),
           `   - Relation kind: ${segment.relation_kind}`,
           `   - Source kind: ${segment.source_kind}`,
           `   - Score: ${segment.score}`,
