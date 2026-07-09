@@ -1,6 +1,6 @@
 <div align="center">
   
-  <img src="https://modelcontextprotocol.io/logo.svg" alt="MCP Logo" width="120" height="120" />
+  <img src="https://modelcontextprotocol.io/favicon.svg" alt="MCP Logo" width="120" height="120" />
 
   <h1>obsidian-knowledge-mcp</h1>
 
