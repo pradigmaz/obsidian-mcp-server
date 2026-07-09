@@ -17,7 +17,7 @@
  * @module scripts/lint-mcp
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { registerHooks } from 'node:module';
+import * as moduleApi from 'node:module';
 import { dirname, extname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -105,7 +105,28 @@ function resolveSourceModulePath(basePath: string): string | null {
   return candidates.find(isFile) ?? null;
 }
 
-registerHooks({
+type ResolveHookContext = {
+  parentURL?: string;
+};
+
+type ResolveHookNext = (
+  specifier: string,
+  context: ResolveHookContext,
+) => { url: string } | Promise<{ url: string }>;
+
+type ModuleHooksApi = {
+  registerHooks?: (hooks: {
+    resolve: (
+      specifier: string,
+      context: ResolveHookContext,
+      nextResolve: ResolveHookNext,
+    ) => unknown;
+  }) => void;
+};
+
+const registerModuleHooks = (moduleApi as ModuleHooksApi).registerHooks;
+
+registerModuleHooks?.({
   resolve(specifier, context, nextResolve) {
     if (specifier.startsWith('@/')) {
       const resolved = resolveSourceModulePath(resolve(ROOT_DIR, 'src', specifier.slice(2)));
