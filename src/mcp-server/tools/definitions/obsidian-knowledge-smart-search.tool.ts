@@ -225,15 +225,25 @@ const SmartSearchIndexTelemetrySchema = z
 
 const FallbackTelemetrySchema = z
   .object({
-    scanLimit: z.number().int().nonnegative().describe('Maximum markdown files the fallback may scan.'),
+    scanLimit: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe('Maximum markdown files the fallback may scan.'),
     scannedFiles: z.number().int().nonnegative().describe('Markdown files actually scanned.'),
-    totalMarkdownFiles: z.number().int().nonnegative().describe('Total markdown files in the vault.'),
+    totalMarkdownFiles: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe('Total markdown files in the vault.'),
     matchingFiles: z
       .number()
       .int()
       .nonnegative()
       .describe('Markdown files matching cheap fallback filters before body reads.'),
-    capped: z.boolean().describe('Whether fallback scanning stopped before all matching files were read.'),
+    capped: z
+      .boolean()
+      .describe('Whether fallback scanning stopped before all matching files were read.'),
   })
   .describe('Vault-text fallback search telemetry.');
 

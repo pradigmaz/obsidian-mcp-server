@@ -166,9 +166,9 @@ export async function initializeStartupDependencies(
     return startupSnapshot;
   }
 
-	try {
-		await deps.launch(deps.resolveObsidianPath(), [obsidianStartupUri(config)]);
-	} catch (err) {
+  try {
+    await deps.launch(deps.resolveObsidianPath(), [obsidianStartupUri(config)]);
+  } catch (err) {
     startupSnapshot = {
       dependencies: [
         database,
@@ -199,13 +199,13 @@ export async function initializeStartupDependencies(
 }
 
 function obsidianStartupUri(config: ServerConfig): string {
-	if (!config.obsidianVaultPath || config.obsidianStartupUri !== 'obsidian://open') {
-		return config.obsidianStartupUri;
-	}
-	const normalized = config.obsidianVaultPath.replace(/[\\/]+$/, '');
-	const vaultName = normalized.split(/[\\/]/).pop();
-	if (!vaultName) return config.obsidianStartupUri;
-	return `obsidian://open?vault=${encodeURIComponent(vaultName)}`;
+  if (!config.obsidianVaultPath || config.obsidianStartupUri !== 'obsidian://open') {
+    return config.obsidianStartupUri;
+  }
+  const normalized = config.obsidianVaultPath.replace(/[\\/]+$/, '');
+  const vaultName = normalized.split(/[\\/]/).pop();
+  if (!vaultName) return config.obsidianStartupUri;
+  return `obsidian://open?vault=${encodeURIComponent(vaultName)}`;
 }
 
 export function getStartupDependencySnapshot(): StartupDependencySnapshot {

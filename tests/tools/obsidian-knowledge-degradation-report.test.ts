@@ -36,7 +36,11 @@ describe('obsidian_knowledge_degradation_report', () => {
           endpointReachable: true,
         },
         vault: { name: 'vault', noteCount: 12, highFindings: 1 },
-        cache: { hit: true, path: '.obsidian/knowledge-cache/graph-health-snapshot.json', ageMs: 10 },
+        cache: {
+          hit: true,
+          path: '.obsidian/knowledge-cache/graph-health-snapshot.json',
+          ageMs: 10,
+        },
       }),
     });
 
