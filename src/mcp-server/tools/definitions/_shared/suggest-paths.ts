@@ -1,20 +1,4 @@
-/**
- * @fileoverview Vault path resolution helpers. Two layered behaviors:
- *
- * 1. **Case-insensitive fallback.** If a path lookup 404s, list the parent
- *    directory and look for a single case-insensitive filename match. If
- *    found, retry against the canonical filesystem path (matches v2.x
- *    behavior). This silently fixes "Readme.md" vs "README.md" on Linux; on
- *    Mac/Windows the OS already case-folds and the fallback is a no-op.
- *
- * 2. **"Did you mean" suggestions.** When no case match exists but the parent
- *    directory has near-matches (e.g., extension-stripped variants), re-throw
- *    NotFound enriched with the candidates in the message and
- *    `error.data.suggestions[]`.
- *
- * Read/open/delete tools wrap their service calls with `withCaseFallback`.
- * @module mcp-server/tools/definitions/_shared/suggest-paths
- */
+/** Vault path case fallback and non-mutating "did you mean" suggestions. */
 
 import type { Context } from '@cyanheads/mcp-ts-core';
 import { conflict, JsonRpcErrorCode, McpError, notFound } from '@cyanheads/mcp-ts-core/errors';
@@ -24,30 +8,11 @@ import type { NoteTarget } from '@/services/obsidian/types.js';
 const MAX_SUGGESTIONS = 5;
 
 interface ProbeResult {
-  /** Filenames that match basename case-insensitively (full vault path). */
   caseMatches: string[];
-  /** Filenames matching modulo extension only (full vault path). */
   extInsensitive: string[];
+  stemPrefixes: string[];
 }
 
-/**
- * Wrap a service call with case-insensitive path fallback and "did you mean"
- * enrichment. Non-path targets pass through — their paths are resolved
- * upstream, so neither layer applies.
- *
- * For path targets:
- *   - **Exact match** → returns `{ result, resolvedPath: target.path }`.
- *   - **Single case match** → retries with the canonical path and returns
- *     `{ result, resolvedPath: <canonical> }`.
- *   - **Multiple case matches** → throws `Conflict` with the candidates so the
- *     agent can disambiguate.
- *   - **No case match, extension-stripped near-matches** → throws `NotFound`
- *     enriched with a "did you mean" hint and `suggestions[]`.
- *   - **No matches at all** → re-throws the original NotFound unchanged.
- *
- * `resolvedPath` is `undefined` for non-path targets — callers derive the
- * canonical path from the result itself (typically `NoteJson.path`).
- */
 export async function withCaseFallback<T>(
   ctx: Context,
   svc: ObsidianService,
@@ -82,8 +47,8 @@ export async function withCaseFallback<T>(
         { cause: err },
       );
     }
-    if (probe.extInsensitive.length === 0) throw err;
-    const suggestions = probe.extInsensitive.slice(0, MAX_SUGGESTIONS);
+    const suggestions = [...probe.extInsensitive, ...probe.stemPrefixes].slice(0, MAX_SUGGESTIONS);
+    if (suggestions.length === 0) throw err;
     const list = suggestions.map((s) => `"${s}"`).join(', ');
     const prefix = err.message.replace(/[.!?]?\s*$/, '');
     throw notFound(
@@ -94,20 +59,16 @@ export async function withCaseFallback<T>(
   }
 }
 
-/**
- * List the parent directory of `path` and return up to {@link MAX_SUGGESTIONS}
- * close-match candidates. Match order: case-insensitive equality first, then
- * extension-stripped equality. Returns `[]` on listing failure or empty
- * basename. Used by callers that need suggestions without performing the
- * underlying operation (e.g., `obsidian_open_in_ui`'s explicit messaging).
- */
 export async function findSimilarPaths(
   ctx: Context,
   svc: ObsidianService,
   path: string,
 ): Promise<string[]> {
   const probe = await probeParentDir(ctx, svc, path);
-  return [...probe.caseMatches, ...probe.extInsensitive].slice(0, MAX_SUGGESTIONS);
+  return [...probe.caseMatches, ...probe.extInsensitive, ...probe.stemPrefixes].slice(
+    0,
+    MAX_SUGGESTIONS,
+  );
 }
 
 async function probeParentDir(
@@ -115,7 +76,7 @@ async function probeParentDir(
   svc: ObsidianService,
   path: string,
 ): Promise<ProbeResult> {
-  const empty: ProbeResult = { caseMatches: [], extInsensitive: [] };
+  const empty: ProbeResult = { caseMatches: [], extInsensitive: [], stemPrefixes: [] };
   const normalized = path.replace(/^\/+|\/+$/g, '');
   if (!normalized) return empty;
 
@@ -137,6 +98,7 @@ async function probeParentDir(
   const baseNoExt = stripExtension(baseLower);
   const caseMatches: string[] = [];
   const extInsensitive: string[] = [];
+  const stemPrefixes: string[] = [];
 
   for (const entry of entries) {
     if (entry.endsWith('/')) continue;
@@ -145,9 +107,19 @@ async function probeParentDir(
       caseMatches.push(qualify(dir, entry));
     } else if (stripExtension(entryLower) === baseNoExt) {
       extInsensitive.push(qualify(dir, entry));
+    } else if (isDescriptiveStemVariant(baseNoExt, stripExtension(entryLower))) {
+      stemPrefixes.push(qualify(dir, entry));
     }
   }
-  return { caseMatches, extInsensitive };
+  return { caseMatches, extInsensitive, stemPrefixes };
+}
+
+function isDescriptiveStemVariant(left: string, right: string): boolean {
+  const [shorter, longer] = left.length < right.length ? [left, right] : [right, left];
+  if (shorter.length < 8 || shorter.length === longer.length || !longer.startsWith(shorter)) {
+    return false;
+  }
+  return /[\s—–_-]/u.test(longer.charAt(shorter.length));
 }
 
 function stripExtension(s: string): string {

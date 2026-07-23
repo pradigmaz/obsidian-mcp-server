@@ -50,4 +50,30 @@ describe('obsidian://vault/{+path}', () => {
       ),
     ).rejects.toMatchObject({ code: JsonRpcErrorCode.NotFound });
   });
+
+  it('suggests a canonical sibling for a stale descriptive suffix', async () => {
+    const missing = 'Самозанятость/Разработка портфолио — дизайн-система.md';
+    const canonical = 'Самозанятость/Разработка портфолио.md';
+    const encodePath = (path: string) => path.split('/').map(encodeURIComponent).join('/');
+
+    harness
+      .current()
+      .pool.intercept({ path: `/vault/${encodePath(missing)}`, method: 'GET' })
+      .reply(404, { message: 'gone' });
+    harness
+      .current()
+      .pool.intercept({ path: `/vault/${encodePath('Самозанятость')}/`, method: 'GET' })
+      .reply(200, { files: ['Разработка портфолио.md'] });
+
+    await expect(
+      obsidianVaultNote.handler(
+        obsidianVaultNote.params!.parse({ path: missing }),
+        createMockContext({ uri: new URL(`obsidian://vault/${encodePath(missing)}`) }),
+      ),
+    ).rejects.toMatchObject({
+      code: JsonRpcErrorCode.NotFound,
+      message: expect.stringContaining(`Did you mean: "${canonical}"?`),
+      data: { suggestions: [canonical] },
+    });
+  });
 });

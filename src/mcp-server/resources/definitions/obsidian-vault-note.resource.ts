@@ -7,6 +7,7 @@
 
 import { resource, z } from '@cyanheads/mcp-ts-core';
 import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
+import { withCaseFallback } from '@/mcp-server/tools/definitions/_shared/suggest-paths.js';
 import { getObsidianService } from '@/services/obsidian/obsidian-service.js';
 
 export const obsidianVaultNote = resource('obsidian://vault/{+path}', {
@@ -50,11 +51,18 @@ export const obsidianVaultNote = resource('obsidian://vault/{+path}', {
       recovery:
         'Verify the path with obsidian_list_notes or use obsidian_search_notes to locate the note.',
     },
+    {
+      reason: 'ambiguous_path',
+      code: JsonRpcErrorCode.Conflict,
+      when: 'The parent directory contains multiple case-insensitive filename matches.',
+      recovery: 'Retry with one of the exact paths listed in `matches`.',
+    },
   ],
 
   async handler(params, ctx) {
     const svc = getObsidianService();
-    const note = await svc.getNoteJson(ctx, { type: 'path', path: params.path });
-    return note;
+    const target = { type: 'path', path: params.path } as const;
+    return (await withCaseFallback(ctx, svc, target, (resolved) => svc.getNoteJson(ctx, resolved)))
+      .result;
   },
 });
