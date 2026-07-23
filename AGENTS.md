@@ -15,7 +15,8 @@
 - Vault-side heavy logic lives in `E:\mcp\knowledge-obsidian-plugin`.
 
 ## Naming
-- Tools: `obsidian_knowledge_smart_search`, `obsidian_knowledge_health_report`, `obsidian_knowledge_workspace_brief`.
+- Tool prefix: `obsidian_knowledge_*`.
+- Current Knowledge tools: `obsidian_knowledge_status`, `obsidian_knowledge_smart_search`, `obsidian_knowledge_health_report`, `obsidian_knowledge_workspace_brief`, `obsidian_knowledge_agent_bootstrap`, `obsidian_knowledge_agent_memory_capture`, `obsidian_knowledge_degradation_report`, `obsidian_knowledge_signal_memory`, `obsidian_knowledge_route_trace`, `obsidian_knowledge_concept_cluster`, `obsidian_knowledge_janitor_scan`, `obsidian_knowledge_investigate_constraint`, `obsidian_knowledge_write_preflight`, `obsidian_knowledge_preview_patch`, `obsidian_knowledge_apply_patch`, `obsidian_knowledge_query_benchmark`.
 - Env: `OBSIDIAN_KNOWLEDGE_URL`, default `http://127.0.0.1:27125`.
 - Avoid `obsidian_rmu_*`, `OBSIDIAN_RMU_URL`, `RMU Analytics`.
 

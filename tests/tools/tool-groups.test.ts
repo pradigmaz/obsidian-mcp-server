@@ -2,6 +2,32 @@ import { describe, expect, it } from 'vitest';
 import { readToolDefinitions, writeToolDefinitions } from '@/mcp-server/tools/definitions/index.js';
 
 describe('tool groups', () => {
+  it('registers every tool advertised by the Knowledge plugin capabilities', () => {
+    const registeredKnowledgeTools = [...readToolDefinitions, ...writeToolDefinitions]
+      .map((tool) => tool.name)
+      .filter((name) => name.startsWith('obsidian_knowledge_'))
+      .sort();
+
+    expect(registeredKnowledgeTools).toEqual([
+      'obsidian_knowledge_agent_bootstrap',
+      'obsidian_knowledge_agent_memory_capture',
+      'obsidian_knowledge_apply_patch',
+      'obsidian_knowledge_concept_cluster',
+      'obsidian_knowledge_degradation_report',
+      'obsidian_knowledge_health_report',
+      'obsidian_knowledge_investigate_constraint',
+      'obsidian_knowledge_janitor_scan',
+      'obsidian_knowledge_preview_patch',
+      'obsidian_knowledge_query_benchmark',
+      'obsidian_knowledge_route_trace',
+      'obsidian_knowledge_signal_memory',
+      'obsidian_knowledge_smart_search',
+      'obsidian_knowledge_status',
+      'obsidian_knowledge_workspace_brief',
+      'obsidian_knowledge_write_preflight',
+    ]);
+  });
+
   it('keeps backup recovery available in read-only mode', () => {
     expect(readToolDefinitions.some((tool) => tool.name === 'obsidian_manage_backups')).toBe(true);
     expect(writeToolDefinitions.some((tool) => tool.name === 'obsidian_manage_backups')).toBe(
