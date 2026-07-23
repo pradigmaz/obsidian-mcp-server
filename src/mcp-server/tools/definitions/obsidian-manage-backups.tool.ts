@@ -3,6 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { tool, z } from '@cyanheads/mcp-ts-core';
 import { getServerConfig } from '@/config/server-config.js';
+import { getBackupKey } from '@/services/obsidian/gatekeeper/backup-manager.js';
 
 export const obsidianManageBackups = tool('obsidian_manage_backups', {
   description:
@@ -42,9 +43,8 @@ export const obsidianManageBackups = tool('obsidian_manage_backups', {
       let filtered = files.filter((f) => f.endsWith('.md'));
 
       if (args.targetPath) {
-        const cleanPath = args.targetPath.replace(/^\/vault\//, '');
-        const sanitizedPath = cleanPath.replace(/[^a-zA-Z0-9_-]/g, '_');
-        filtered = filtered.filter((f) => f.includes(sanitizedPath));
+        const backupKey = getBackupKey(args.targetPath);
+        filtered = filtered.filter((f) => f.endsWith(`-${backupKey}.md`));
       }
 
       if (filtered.length === 0) {
