@@ -14,7 +14,7 @@
  */
 
 import { execFile } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { readdir, stat } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,8 +23,21 @@ const ROOT_DIR = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST_DIR = join(ROOT_DIR, 'dist');
 
 function binPath(name: string): string {
-  const executable = process.platform === 'win32' ? `${name}.cmd` : name;
-  return join(ROOT_DIR, 'node_modules', '.bin', executable);
+  const candidates =
+    process.platform === 'win32' ? [`${name}.exe`, `${name}.cmd`, `${name}.bunx`] : [name];
+  return (
+    candidates
+      .map((candidate) => join(ROOT_DIR, 'node_modules', '.bin', candidate))
+      .find(existsSync) ?? join(ROOT_DIR, 'node_modules', '.bin', candidates[0] ?? name)
+  );
+}
+
+function toolCommand(name: 'tsc' | 'tsc-alias'): string[] {
+  const script =
+    name === 'tsc'
+      ? join(ROOT_DIR, 'node_modules', 'typescript', 'bin', 'tsc')
+      : join(ROOT_DIR, 'node_modules', 'tsc-alias', 'dist', 'bin', 'index.js');
+  return existsSync(script) ? [process.execPath, script] : [binPath(name)];
 }
 
 async function exec(
@@ -109,11 +122,11 @@ async function main() {
   const totalStart = performance.now();
 
   // Step 1: tsc
-  const tsc = await exec([binPath('tsc'), '-p', project], 'tsc');
+  const tsc = await exec([...toolCommand('tsc'), '-p', project], 'tsc');
   if (!tsc.ok) process.exit(1);
 
   // Step 2: tsc-alias
-  const alias = await exec([binPath('tsc-alias'), '-p', project], 'tsc-alias');
+  const alias = await exec([...toolCommand('tsc-alias'), '-p', project], 'tsc-alias');
   if (!alias.ok) process.exit(1);
 
   const totalMs = Math.round(performance.now() - totalStart);

@@ -97,7 +97,7 @@ describe('obsidian_knowledge_agent_bootstrap', () => {
     };
 
     const res = await obsidianKnowledgeAgentBootstrap.handler(
-      { query: 'test query', limit: 5, budget: 100 },
+      { query: 'test query', workspacePath: 'E:\\Projects\\Alpha', limit: 5, budget: 100 },
       mockCtx as any,
     );
 
@@ -105,7 +105,12 @@ describe('obsidian_knowledge_agent_bootstrap', () => {
       'http://127.0.0.1:27125/api/bootstrap',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ query: 'test query', limit: 5, budget: 100 }),
+        body: JSON.stringify({
+          query: 'test query',
+          workspacePath: 'E:\\Projects\\Alpha',
+          limit: 5,
+          budget: 100,
+        }),
         headers: expect.objectContaining({
           'Content-Type': 'application/json',
           'X-Schema-Version': '0.1.0',

@@ -27,6 +27,7 @@ import { obsidianWriteNote } from './obsidian-write-note.tool.js';
 export { buildSearchNotesTool } from './obsidian-search-notes.tool.js';
 
 import { obsidianKnowledgeAgentBootstrap } from './obsidian-knowledge-agent-bootstrap.tool.js';
+import { obsidianKnowledgeAgentMemoryCapture } from './obsidian-knowledge-agent-memory-capture.tool.js';
 import { obsidianKnowledgeApplyPatch } from './obsidian-knowledge-apply-patch.tool.js';
 import { obsidianKnowledgeConceptCluster } from './obsidian-knowledge-concept-cluster.tool.js';
 import { obsidianKnowledgeDegradationReport } from './obsidian-knowledge-degradation-report.tool.js';
@@ -82,6 +83,7 @@ export const writeToolDefinitions = [
   obsidianDeleteNote,
   obsidianKnowledgeApplyPatch,
   obsidianKnowledgeQueryBenchmark,
+  obsidianKnowledgeAgentMemoryCapture,
 ];
 
 /** Command-palette tools — opt-in via `OBSIDIAN_ENABLE_COMMANDS=true`; suppressed by `OBSIDIAN_READ_ONLY=true`. */

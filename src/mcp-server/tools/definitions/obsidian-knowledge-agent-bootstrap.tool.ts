@@ -188,6 +188,12 @@ export const obsidianKnowledgeAgentBootstrap = createKnowledgeProxyTool({
     'Provide compact agent startup context including workspace brief, relevant notes, nearby links, and suggested next steps.',
   input: z.object({
     query: z.string().min(1).describe('The main task or question to bootstrap context for.'),
+    workspacePath: z
+      .string()
+      .min(2)
+      .max(1024)
+      .optional()
+      .describe('Absolute local workspace path used to scope durable agent memory.'),
     limit: z
       .number()
       .int()
